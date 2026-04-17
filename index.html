@@ -145,6 +145,8 @@
 
 <script>
 const CSV_URL = 'https://raw.githubusercontent.com/wonderdk/bekindrewind/main/movies.csv';
+const GITHUB_API = 'https://api.github.com/repos/wonderdk/bekindrewind/contents/movies.csv';
+let GH_TOKEN = localStorage.getItem('gh_token') || '';
 const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxZTY3N2ZiMTVjMGM4ZDBkNTMzNjQzMGYxNmNlOTFmMiIsIm5iZiI6MTc3NjQxMjk3Mi4zMDIsInN1YiI6IjY5ZTFlOTJjNmJlM2VmOWRmZThiN2I1MCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.LmxBN4pTZr1OsghaHWA2LkbrqJrGNqftKmyQ1ZUNOQA';
 let movies = [];
 let filter = 'all';
@@ -154,6 +156,52 @@ let tonight = new Set(JSON.parse(localStorage.getItem('tonight') || '[]'));
 let currentView = 'collection';
 let sort = 'title-asc';
 
+function promptToken() {
+  const t = prompt('Enter your GitHub Personal Access Token:');
+  if (t) { GH_TOKEN = t; localStorage.setItem('gh_token', t); }
+  return !!t;
+}
+
+async function toggleWatched(imdb_id) {
+  if (!GH_TOKEN && !promptToken()) return;
+  const m = movies.find(m => m.imdb_id === imdb_id);
+  if (!m) return;
+  m.watched = m.watched === 'true' ? 'false' : 'true';
+  renderGrid();
+  renderTonight();
+  try {
+    const meta = await fetch(GITHUB_API, {
+      headers: { Authorization: `token ${GH_TOKEN}` }
+    });
+    const metaJson = await meta.json();
+    const sha = metaJson.sha;
+    const fields = ['title','year','format','barcode','imdb_id','runtime','director','watched','poster_url','box_set','genre_ids'];
+    const header = fields.map(f => `"${f}"`).join(',');
+    const rows = movies.map(m =>
+      fields.map(f => `"${(m[f]||'').replace(/"/g,'""')}"`).join(',')
+    );
+    const csv = [header, ...rows].join('\n');
+    const encoded = btoa(unescape(encodeURIComponent(csv)));
+    await fetch(GITHUB_API, {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${GH_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `Toggle watched: ${m.title}`,
+        content: encoded,
+        sha: sha
+      })
+    });
+  } catch(e) {
+    console.error('Write failed:', e);
+    m.watched = m.watched === 'true' ? 'false' : 'true';
+    renderGrid();
+  }
+}
+
+ 
 function parseCSV(text) {
   const rows = [];
   const lines = text.trim().split('\n');
@@ -252,7 +300,7 @@ function renderGrid() {
         <div class="scanlines"></div>
         ${m.poster_url ? `<img src="${m.poster_url}" alt="${m.title}" onerror="this.style.display='none'">` : ''}
         <div class="poster-placeholder"><div class="poster-placeholder-inner"></div></div>
-        <div class="watched-dot" style="background:${m.watched==='true'?'#4CAF50':'#556080'}"></div>
+        <div class="watched-dot ${m.watched==='true'?'w-yes':'w-no'}" onclick="toggleWatched('${m.imdb_id}')" title="${m.watched==='true'?'Mark unwatched':'Mark watched'}" style="cursor:pointer;"></div>
         <div class="fmt-badge ${fmtClass(m.format)}">${fmtLabel(m.format)}</div>
         <div class="pip"></div>
         ${m.box_set ? `<div class="boxset-icon" title="${m.box_set}">BOX</div>` : ''}
