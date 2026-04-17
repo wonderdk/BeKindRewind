@@ -277,6 +277,7 @@ function setGenre(val) {
 function populateGenres() {
   const select = document.getElementById('genre-select');
   if (!select) return;
+  const current = select.value;  // save current
   const genres = new Set();
   movies.forEach(m => {
     if (m.genre_ids) m.genre_ids.split('|').forEach(g => {
@@ -291,6 +292,7 @@ function populateGenres() {
     opt.textContent = g;
     select.appendChild(opt);
   });
+  select.value = current;  // restore current
 }
 
 function renderGrid() {
