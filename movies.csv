@@ -1,5 +1,5 @@
 "title","year","format","barcode","imdb_id","runtime","director","watched","poster_url","box_set","genre_ids"
-"Schindler's List","1993","DVD","5050582207774","tt0108052","187","Steven Spielberg","false","https://image.tmdb.org/t/p/w300/sF1U4EUQS8YHUYjNl3pMGNIQyr0.jpg","","Drama|History|War"
+"Schindler's List","1993","DVD","5050582207774","tt0108052","187","Steven Spielberg","true","https://image.tmdb.org/t/p/w300/sF1U4EUQS8YHUYjNl3pMGNIQyr0.jpg","","Drama|History|War"
 "Lawrence of Arabia","1962","Blu-ray","043396406964","tt0056172","227","David Lean","false","https://image.tmdb.org/t/p/w300/AiAm0EtDvyGqNpVoieRw4u65vD1.jpg","","Adventure|History|War"
 "Ring 2","2005","DVD","5023965332929","tt0218553","110","Hideo Nakata","false","https://image.tmdb.org/t/p/w300/HREqYQWkGnH2viRQEXupCSX7ID.jpg","","Horror|Mystery|Sci-Fi"
 "Die Hard 2","1990","DVD","5039036000307","tt0099423","118","Renny Harlin","false","https://image.tmdb.org/t/p/w300/ybki0UWO3OPhaM6MSniuKC7sy1R.jpg","","Action|Thriller"
