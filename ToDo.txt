@@ -5,3 +5,6 @@ Der mangler posters på nogen
 
 Add view page for each title
 
+Show selected genre in drop down
+
+Reset filters
