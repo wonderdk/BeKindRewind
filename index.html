@@ -164,9 +164,9 @@ function promptToken() {
   return !!t;
 }
 
-async function toggleWatched(barcode, imdb_id) {
+async function toggleWatched(uid) {
   if (!GH_TOKEN && !promptToken()) return;
-  const m = movies.find(m => m.barcode === barcode && m.imdb_id === imdb_id);
+  const m = movies.find(m => m.uid === uid);
   if (!m) return;
   m.watched = m.watched === 'true' ? 'false' : 'true';
   renderGrid();
@@ -177,7 +177,7 @@ async function toggleWatched(barcode, imdb_id) {
     });
     const metaJson = await meta.json();
     const sha = metaJson.sha;
-    const fields = ['title','year','format','barcode','imdb_id','runtime','director','watched','poster_url','box_set','genre_ids'];
+    const fields = ['uid','title','year','format','barcode','imdb_id','runtime','director','watched','poster_url','box_set','genre_ids'];
     const header = fields.map(f => `"${f}"`).join(',');
     const rows = movies.map(m =>
       fields.map(f => `"${(m[f]||'').replace(/"/g,'""')}"`).join(',')
@@ -302,7 +302,7 @@ function renderGrid() {
         <div class="scanlines"></div>
         ${m.poster_url ? `<img src="${m.poster_url}" alt="${m.title}" onerror="this.style.display='none'">` : ''}
         <div class="poster-placeholder"><div class="poster-placeholder-inner"></div></div>
-        <div class="watched-dot ${m.watched==='true'?'w-yes':'w-no'}" onclick="toggleWatched('${m.barcode}','${m.imdb_id}')" title="${m.watched==='true'?'Mark unwatched':'Mark watched'}" style="cursor:pointer;"></div>
+        <div class="watched-dot ${m.watched==='true'?'w-yes':'w-no'}" onclick="toggleWatched('${m.uid}')" title="${m.watched==='true'?'Mark unwatched':'Mark watched'}" style="cursor:pointer;"></div>
         <div class="fmt-badge ${fmtClass(m.format)}">${fmtLabel(m.format)}</div>
         <div class="pip"></div>
         ${m.box_set ? `<div class="boxset-icon" title="${m.box_set}">BOX</div>` : ''}
