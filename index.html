@@ -1,6 +1,257 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Be Kind, Rewind</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0f1628;font-family:system-ui,sans-serif;color:#e8ecf8;min-height:100vh}
+  header{background:#003087;border-bottom:3px solid #FFD600;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo-mark{background:#FFD600;color:#003087;font-size:11px;font-weight:700;padding:3px 7px;border-radius:3px;letter-spacing:.05em}
+  .logo-text{color:#fff;font-size:15px;font-weight:500;letter-spacing:.05em}
+  nav{display:flex;gap:2px}
+  .nav-item{color:#9BA3C4;font-size:13px;padding:6px 14px;border-radius:3px;cursor:pointer;border:1px solid transparent;position:relative}
+  .nav-item:hover{color:#fff}
+  .nav-item.active{color:#fff;background:#1a3a6a;border-color:#2a4a7a}
+  .nav-item.tonight.active{color:#FFD600;background:#1a2240;border-color:#FFD600}
+  .badge{position:absolute;top:2px;right:2px;background:#FFD600;color:#003087;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;display:none;align-items:center;justify-content:center;padding:0 3px}
+  .stat{color:#9BA3C4;font-size:12px}
+  .stat strong{color:#FFD600}
+  .toolbar{background:#1a2240;padding:10px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #2a3460}
+  .search{background:#0f1628;border:1px solid #2a3460;border-radius:4px;padding:7px 12px;color:#fff;font-size:13px;width:260px;outline:none}
+  .search::placeholder{color:#556080}
+  .filters{display:flex;gap:6px;margin-left:auto}
+  .filter{background:transparent;border:1px solid #2a3460;color:#9BA3C4;font-size:12px;padding:5px 12px;border-radius:3px;cursor:pointer}
+  .filter:hover{color:#fff;border-color:#4a5580}
+  .filter.active{background:#FFD600;color:#003087;border-color:#FFD600;font-weight:500}
+  .body{padding:24px}
+  .shelf-label{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .shelf-title{color:#FFD600;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase}
+  .shelf-line{flex:1;height:1px;background:#2a3460}
+  .shelf-count{color:#556080;font-size:11px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin-bottom:32px}
+  .card{background:#1a2240;border-radius:4px;overflow:hidden;border:1px solid #2a3460;cursor:pointer;position:relative}
+  .card:hover{border-color:#4a5580}
+  .card.queued{border-color:#3a4a6a}
+  .poster{width:100%;aspect-ratio:2/3;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#232847}
+  .scanlines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);pointer-events:none;z-index:2}
+  .poster img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+  .poster-placeholder{width:32px;height:32px;border-radius:50%;border:3px solid #2a3460;display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
+  .poster-placeholder-inner{width:9px;height:9px;border-radius:50%;background:#2a3460}
+  .fmt-badge{position:absolute;top:6px;right:6px;font-size:9px;font-weight:700;padding:2px 5px;border-radius:2px;z-index:3;letter-spacing:.04em}
+  .fmt-DVD{background:#8B0000;color:#ffaaaa}
+  .fmt-Blu-ray{background:#003087;color:#7aaeff;border:1px solid #0044cc}
+  .fmt-4K{background:#111;color:#FFD600;border:1px solid #FFD600}
+  .watched-dot{position:absolute;top:6px;left:6px;width:7px;height:7px;border-radius:50%;z-index:3}
+  .pip{position:absolute;bottom:6px;right:6px;width:6px;height:6px;border-radius:50%;background:#FFD600;display:none;z-index:3}
+  .card.queued .pip{display:block}
+  .card-info{padding:7px 8px 6px;display:flex;align-items:flex-start;justify-content:space-between;gap:4px}
+  .card-meta{flex:1;min-width:0}
+  .card-title{color:#e8ecf8;font-size:11px;font-weight:500;line-height:1.3;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card-year{color:#556080;font-size:10px}
+  .star-btn{background:transparent;border:none;cursor:pointer;padding:1px;flex-shrink:0;margin-top:1px;opacity:.25;line-height:1}
+  .star-btn:hover{opacity:.6}
+  .card.queued .star-btn{opacity:1}
+  .tonight-view{padding:24px}
+  .tonight-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .tonight-title{color:#FFD600;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase}
+  .clear-btn{background:transparent;border:1px solid #2a3460;color:#556080;font-size:11px;padding:4px 12px;border-radius:3px;cursor:pointer}
+  .clear-btn:hover{color:#9BA3C4;border-color:#556080}
+  .tonight-empty{color:#556080;font-size:13px;text-align:center;padding:60px 0;line-height:1.8}
+  .tonight-list{display:flex;flex-direction:column;gap:8px}
+  .tonight-row{background:#1a2240;border:1px solid #2a3460;border-radius:4px;display:flex;align-items:center;gap:14px;padding:10px 14px}
+  .tonight-num{color:#556080;font-size:12px;width:16px;flex-shrink:0}
+  .tonight-row-poster{width:36px;height:54px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#232847;display:flex;align-items:center;justify-content:center;position:relative}
+  .tonight-row-poster img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+  .tonight-row-info{flex:1;min-width:0}
+  .tonight-row-title{color:#e8ecf8;font-size:13px;font-weight:500;margin-bottom:3px}
+  .tonight-row-meta{color:#556080;font-size:11px;display:flex;gap:10px}
+  .tonight-fmt{font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px}
+  .tonight-remove{background:transparent;border:none;color:#2a3460;cursor:pointer;font-size:18px;line-height:1;padding:2px 4px}
+  .tonight-remove:hover{color:#9BA3C4}
+  .hidden{display:none}
+</style>
+</head>
 <body>
-<h1>Be Kind, Rewind</h1>
+<header>
+  <div class="logo">
+    <div class="logo-mark">VIDEO</div>
+    <div class="logo-text">Be Kind, Rewind</div>
+  </div>
+  <nav>
+    <div class="nav-item active" id="nav-collection" onclick="switchView('collection')">Collection</div>
+    <div class="nav-item tonight" id="nav-tonight" onclick="switchView('tonight')">Tonight<div class="badge" id="badge"></div></div>
+  </nav>
+  <div class="stat"><strong id="total">0</strong> titles</div>
+</header>
+
+<div id="view-collection">
+  <div class="toolbar">
+    <input class="search" type="text" placeholder="Search titles, directors..." id="search" oninput="renderGrid()">
+    <div class="filters">
+      <button class="filter active" onclick="setFilter('all',this)">All</button>
+      <button class="filter" onclick="setFilter('DVD',this)">DVD</button>
+      <button class="filter" onclick="setFilter('Blu-ray',this)">Blu-ray</button>
+      <button class="filter" onclick="setFilter('4K',this)">4K</button>
+      <button class="filter" onclick="setFilter('unwatched',this)">Unwatched</button>
+    </div>
+  </div>
+  <div class="body">
+    <div class="shelf-label">
+      <div class="shelf-title">My collection</div>
+      <div class="shelf-line"></div>
+      <div class="shelf-count" id="shelf-count">0 titles</div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<div id="view-tonight" class="hidden">
+  <div class="tonight-view">
+    <div class="tonight-header">
+      <div class="tonight-title">Tonight's shelf</div>
+      <button class="clear-btn" onclick="clearTonight()">Clear all</button>
+    </div>
+    <div id="tonight-content"></div>
+  </div>
+</div>
+
+<script>
+const CSV_URL = 'https://raw.githubusercontent.com/wonderdk/bekindrewind/main/movies.csv';
+let movies = [];
+let filter = 'all';
+let tonight = new Set(JSON.parse(localStorage.getItem('tonight') || '[]'));
+let currentView = 'collection';
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',');
+  return lines.slice(1).map(line => {
+    const vals = line.split(',');
+    const obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
+    return obj;
+  });
+}
+
+async function loadMovies() {
+  try {
+    const res = await fetch(CSV_URL + '?t=' + Date.now());
+    const text = await res.text();
+    movies = parseCSV(text);
+    document.getElementById('total').textContent = movies.length;
+    renderGrid();
+  } catch(e) {
+    document.getElementById('grid').innerHTML = '<p style="color:#556080;padding:20px">Could not load collection.</p>';
+  }
+}
+
+function fmtClass(f) { return 'fmt-' + f.replace(' ',''); }
+function fmtLabel(f) { return f === 'Blu-ray' ? 'BD' : f; }
+
+function getFiltered() {
+  const q = document.getElementById('search').value.toLowerCase();
+  return movies.filter(m => {
+    if (filter === 'unwatched' && m.watched === 'true') return false;
+    if (filter !== 'all' && filter !== 'unwatched' && m.format !== filter) return false;
+    if (q && !m.title.toLowerCase().includes(q) && !m.director.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderGrid() {
+  const visible = getFiltered();
+  document.getElementById('shelf-count').textContent = visible.length + ' titles';
+  document.getElementById('grid').innerHTML = visible.map((m,i) => `
+    <div class="card ${tonight.has(m.imdb_id)?'queued':''}" id="c-${m.imdb_id}">
+      <div class="poster" style="background:#${['1a0a0a','0a1a0a','0a0a1a','1a1a0a','1a0a1a','0a1a1a'][i%6]}">
+        <div class="scanlines"></div>
+        ${m.poster_url ? `<img src="${m.poster_url}" alt="${m.title}" onerror="this.style.display='none'">` : ''}
+        <div class="poster-placeholder"><div class="poster-placeholder-inner"></div></div>
+        <div class="watched-dot" style="background:${m.watched==='true'?'#4CAF50':'#556080'}"></div>
+        <div class="fmt-badge ${fmtClass(m.format)}">${fmtLabel(m.format)}</div>
+        <div class="pip"></div>
+      </div>
+      <div class="card-info">
+        <div class="card-meta">
+          <div class="card-title">${m.title}</div>
+          <div class="card-year">${m.year}</div>
+        </div>
+        <button class="star-btn" onclick="toggleTonight('${m.imdb_id}')" title="Add to tonight">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="${tonight.has(m.imdb_id)?'#FFD600':'none'}" stroke="#FFD600" stroke-width="1.2">
+            <polygon points="6,1 7.5,4.5 11.5,4.8 8.7,7.3 9.6,11.2 6,9.1 2.4,11.2 3.3,7.3 0.5,4.8 4.5,4.5"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTonight() {
+  const badge = document.getElementById('badge');
+  if (tonight.size > 0) { badge.style.display='flex'; badge.textContent=tonight.size; }
+  else { badge.style.display='none'; }
+  if (currentView !== 'tonight') return;
+  const picked = movies.filter(m => tonight.has(m.imdb_id));
+  const el = document.getElementById('tonight-content');
+  if (picked.length === 0) {
+    el.innerHTML = '<div class="tonight-empty">Nothing on the shelf yet.<br>Star a film from the collection to add it here.</div>';
+    return;
+  }
+  el.innerHTML = '<div class="tonight-list">' + picked.map((m,i) => `
+    <div class="tonight-row">
+      <div class="tonight-num">${i+1}</div>
+      <div class="tonight-row-poster" style="background:#1a2240">
+        ${m.poster_url ? `<img src="${m.poster_url}" alt="${m.title}" onerror="this.style.display='none'">` : ''}
+        <div class="poster-placeholder" style="width:18px;height:18px;border-width:2px"><div class="poster-placeholder-inner" style="width:5px;height:5px"></div></div>
+      </div>
+      <div class="tonight-row-info">
+        <div class="tonight-row-title">${m.title}</div>
+        <div class="tonight-row-meta">
+          <span class="tonight-fmt ${fmtClass(m.format)}">${fmtLabel(m.format)}</span>
+          <span>${m.year}</span>
+          <span>${m.runtime} min</span>
+          <span>${m.director}</span>
+        </div>
+      </div>
+      <button class="tonight-remove" onclick="toggleTonight('${m.imdb_id}')">×</button>
+    </div>
+  `).join('') + '</div>';
+}
+
+function toggleTonight(id) {
+  if (tonight.has(id)) tonight.delete(id); else tonight.add(id);
+  localStorage.setItem('tonight', JSON.stringify([...tonight]));
+  renderGrid();
+  renderTonight();
+}
+
+function clearTonight() {
+  tonight.clear();
+  localStorage.setItem('tonight', '[]');
+  renderGrid();
+  renderTonight();
+}
+
+function setFilter(f, btn) {
+  filter = f;
+  document.querySelectorAll('.filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+}
+
+function switchView(v) {
+  currentView = v;
+  document.getElementById('view-collection').classList.toggle('hidden', v !== 'collection');
+  document.getElementById('view-tonight').classList.toggle('hidden', v !== 'tonight');
+  document.getElementById('nav-collection').className = 'nav-item' + (v==='collection'?' active':'');
+  document.getElementById('nav-tonight').className = 'nav-item tonight' + (v==='tonight'?' active':'');
+  renderTonight();
+}
+
+loadMovies();
+</script>
 </body>
 </html>
