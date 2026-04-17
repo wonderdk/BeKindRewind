@@ -21,7 +21,7 @@
   .badge{position:absolute;top:2px;right:2px;background:#FFD600;color:#003087;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;display:none;align-items:center;justify-content:center;padding:0 3px}
   .stat{color:#9BA3C4;font-size:12px}
   .stat strong{color:#FFD600}
- .toolbar{background:#1a2240;padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-bottom:1px solid #2a3460;}
+ .toolbar{background:#0f1628;padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-bottom:1px solid #2a3460;position:sticky;top:56px;z-index:90;}
 .search{background:#0f1628;border:1px solid #2a3460;border-radius:4px;padding:7px 12px;color:#fff;font-size:13px;width:100%;outline:none;}
 .search::placeholder{color:#556080}
 .toolbar-right{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%;}
@@ -133,6 +133,40 @@
   .cast-grid{grid-template-columns:repeat(auto-fill,minmax(70px,1fr))}
   .back-btn{left:16px;top:12px}
 }
+/* ── Add Film modal & toast ── */
+.add-btn{background:#FFD600;color:#003087;border:none;font-size:20px;font-weight:700;width:32px;height:32px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;padding-bottom:2px}
+.add-btn:hover{background:#ffe033}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:72px 16px 24px;overflow-y:auto}
+.modal-box{background:#0f1628;border:1px solid #2a3460;border-radius:6px;width:100%;max-width:560px;flex-shrink:0;display:flex;flex-direction:column;max-height:calc(100vh - 96px)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #2a3460;flex-shrink:0}
+.modal-title{color:#FFD600;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.modal-close{background:transparent;border:none;color:#556080;font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.modal-close:hover{color:#e8ecf8}
+.modal-search-row{display:flex;gap:8px;padding:14px 20px;border-bottom:1px solid #2a3460;flex-shrink:0}
+.modal-input{flex:1;background:#1a2240;border:1px solid #2a3460;border-radius:4px;padding:8px 12px;color:#fff;font-size:13px;outline:none}
+.modal-input:focus{border-color:#556080}
+.modal-input::placeholder{color:#556080}
+.modal-search-btn{background:#FFD600;color:#003087;border:none;font-size:12px;font-weight:700;padding:8px 16px;border-radius:4px;cursor:pointer;white-space:nowrap;letter-spacing:.04em}
+.modal-search-btn:hover{background:#ffe033}
+.modal-results{overflow-y:auto;flex:1}
+.modal-result{display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid #1a2240}
+.modal-result:last-child{border-bottom:none}
+.modal-result-poster{width:38px;height:57px;object-fit:cover;border-radius:2px;border:1px solid #2a3460;flex-shrink:0;display:block}
+.modal-poster-empty{width:38px;height:57px;background:#1a2240;border-radius:2px;border:1px solid #2a3460;flex-shrink:0}
+.modal-result-info{flex:1;min-width:0}
+.modal-result-title{color:#e8ecf8;font-size:13px;font-weight:500;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal-result-meta{color:#556080;font-size:11px}
+.modal-fmt-select{background:#1a2240;border:1px solid #2a3460;color:#9BA3C4;font-size:11px;padding:4px 6px;border-radius:3px;cursor:pointer;outline:none;flex-shrink:0}
+.modal-add-btn{background:#FFD600;color:#003087;border:none;font-size:11px;font-weight:700;padding:6px 12px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;letter-spacing:.03em}
+.modal-add-btn:hover{background:#ffe033}
+.modal-add-btn:disabled{opacity:.45;cursor:default}
+.modal-status{color:#9BA3C4;font-size:13px;padding:32px 20px;text-align:center}
+.add-toast{position:fixed;top:68px;left:50%;transform:translateX(-50%);background:#0a2a10;border:1px solid #4CAF50;color:#6ed47a;font-size:12px;font-weight:500;padding:8px 20px;border-radius:4px;z-index:300;pointer-events:none;white-space:nowrap;transition:opacity .4s;display:none}
+.add-toast.fade-out{opacity:0}
+@media(max-width:600px){
+  .modal-overlay{padding-top:0;padding-left:0;padding-right:0;align-items:flex-end}
+  .modal-box{border-radius:12px 12px 0 0;max-width:100%;max-height:90vh}
+}
 </style>
 </head>
 <body>
@@ -145,8 +179,26 @@
     <div class="nav-item active" id="nav-collection" onclick="switchView('collection')">Collection</div>
     <div class="nav-item tonight" id="nav-tonight" onclick="switchView('tonight')">Tonight<div class="badge" id="badge"></div></div>
   </nav>
-  <div class="stat"><strong id="total">0</strong> titles</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="stat"><strong id="total">0</strong> titles</div>
+    <button class="add-btn" onclick="openAddModal()" title="Add film to collection">+</button>
+  </div>
 </header>
+
+<div id="add-modal" class="modal-overlay" onclick="if(event.target===this)closeAddModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Add Film to Collection</div>
+      <button class="modal-close" onclick="closeAddModal()">×</button>
+    </div>
+    <div class="modal-search-row">
+      <input type="text" id="modal-query" class="modal-input" placeholder="Search by title…" onkeydown="if(event.key==='Enter')searchFilmTMDB()">
+      <button class="modal-search-btn" onclick="searchFilmTMDB()">Search</button>
+    </div>
+    <div id="modal-results" class="modal-results"></div>
+  </div>
+</div>
+<div id="add-toast" class="add-toast"></div>
 
 <div id="view-collection">
   <div class="toolbar">
@@ -531,6 +583,113 @@ async function detailToggleWatched(uid) {
   const isWatched = m.watched === 'true';
   btn.textContent = isWatched ? '✓ Watched' : 'Mark as Watched';
   btn.classList.toggle('is-watched', isWatched);
+}
+
+function openAddModal() {
+  const m = document.getElementById('add-modal');
+  m.style.display = 'flex';
+  document.getElementById('modal-results').innerHTML = '';
+  document.getElementById('modal-query').value = '';
+  setTimeout(() => document.getElementById('modal-query').focus(), 50);
+}
+
+function closeAddModal() {
+  document.getElementById('add-modal').style.display = 'none';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddModal(); });
+
+async function searchFilmTMDB() {
+  const q = document.getElementById('modal-query').value.trim();
+  if (!q) return;
+  const el = document.getElementById('modal-results');
+  el.innerHTML = '<div class="modal-status">Searching…</div>';
+  try {
+    const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
+    const data = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=1`, { headers: hdrs }).then(r => r.json());
+    const results = (data.results || []).slice(0, 10);
+    if (!results.length) { el.innerHTML = '<div class="modal-status">No results found.</div>'; return; }
+    el.innerHTML = results.map(r => `
+      <div class="modal-result" id="mr-${r.id}">
+        ${r.poster_path ? `<img class="modal-result-poster" src="https://image.tmdb.org/t/p/w92${r.poster_path}" alt="${escHtml(r.title)}">` : '<div class="modal-poster-empty"></div>'}
+        <div class="modal-result-info">
+          <div class="modal-result-title">${escHtml(r.title)}</div>
+          <div class="modal-result-meta">${r.release_date?.slice(0,4) || '—'} · <span id="dir-${r.id}">…</span></div>
+        </div>
+        <select class="modal-fmt-select" id="fmt-${r.id}">
+          <option value="DVD">DVD</option>
+          <option value="Blu-ray" selected>Blu-ray</option>
+          <option value="4K Ultra HD">4K Ultra HD</option>
+        </select>
+        <button class="modal-add-btn" onclick="addFilm(${r.id})">Add</button>
+      </div>`).join('');
+    results.forEach(async r => {
+      try {
+        const credits = await fetch(`https://api.themoviedb.org/3/movie/${r.id}/credits`, { headers: hdrs }).then(res => res.json());
+        const dir = credits.crew?.find(c => c.job === 'Director')?.name || '—';
+        const d = document.getElementById(`dir-${r.id}`);
+        if (d) d.textContent = dir;
+      } catch { const d = document.getElementById(`dir-${r.id}`); if (d) d.textContent = '—'; }
+    });
+  } catch(e) {
+    el.innerHTML = '<div class="modal-status">Search failed. Please try again.</div>';
+  }
+}
+
+async function addFilm(tmdbId) {
+  if (!GH_TOKEN && !promptToken()) return;
+  const btn = document.querySelector(`#mr-${tmdbId} .modal-add-btn`);
+  const fmt = document.getElementById(`fmt-${tmdbId}`)?.value || 'Blu-ray';
+  if (btn) { btn.textContent = 'Adding…'; btn.disabled = true; }
+  try {
+    const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
+    const d = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=credits,external_ids`, { headers: hdrs }).then(r => r.json());
+    const imdbId = d.external_ids?.imdb_id || '';
+    const runtime = String(d.runtime || '');
+    const director = d.credits?.crew?.find(c => c.job === 'Director')?.name || '';
+    const posterUrl = d.poster_path ? `https://image.tmdb.org/t/p/w300${d.poster_path}` : '';
+    const year = d.release_date?.slice(0, 4) || '';
+    const genreIds = (d.genres || []).map(g => g.name).join('|');
+    const maxUid = movies.reduce((max, m) => Math.max(max, parseInt(m.uid) || 0), 0);
+    const newMovie = {
+      uid: String(maxUid + 1), title: d.title || '', year, format: fmt,
+      barcode: '', imdb_id: imdbId, runtime, director,
+      watched: 'false', poster_url: posterUrl, box_set: '', genre_ids: genreIds
+    };
+    const meta = await fetch(GITHUB_API, { headers: { Authorization: `token ${GH_TOKEN}` } }).then(r => r.json());
+    const sha = meta.sha;
+    const fields = ['uid','title','year','format','barcode','imdb_id','runtime','director','watched','poster_url','box_set','genre_ids'];
+    const header = fields.map(f => `"${f}"`).join(',');
+    const allMovies = [...movies, newMovie];
+    const rows = allMovies.map(m => fields.map(f => `"${(m[f]||'').replace(/"/g,'""')}"`).join(','));
+    const csv = [header, ...rows].join('\n');
+    const encoded = btoa(unescape(encodeURIComponent(csv)));
+    await fetch(GITHUB_API, {
+      method: 'PUT',
+      headers: { Authorization: `token ${GH_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: `Add: ${newMovie.title}`, content: encoded, sha })
+    });
+    movies.push(newMovie);
+    document.getElementById('total').textContent = movies.length;
+    renderGrid();
+    populateGenres();
+    closeAddModal();
+    showAddToast(`"${newMovie.title}" added to collection`);
+  } catch(e) {
+    console.error('Add film failed:', e);
+    if (btn) { btn.textContent = 'Failed'; btn.disabled = false; }
+  }
+}
+
+function showAddToast(msg) {
+  const t = document.getElementById('add-toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.classList.remove('fade-out');
+  setTimeout(() => {
+    t.classList.add('fade-out');
+    setTimeout(() => { t.style.display = 'none'; t.classList.remove('fade-out'); }, 400);
+  }, 3000);
 }
 
 loadMovies();
