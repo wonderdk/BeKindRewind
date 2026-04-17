@@ -1,19 +1,7 @@
-Fold box set ud, me giv et icon for at det er del af et box set., 
 
-Lav sorting mekanisme
+Der mangler nogle titler der skal ud fra box
 
-Favicon - blockbuster ikon
-
-Lav format til dropdown
-
-Add scale function for number of titles per row or size of thumb.
-
-Fix url so also small letters work
-
-More space for title
-
-
-
-
+Der mangler posters på nogen
 
 Add view page for each title
+
