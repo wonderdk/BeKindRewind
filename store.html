@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blockbuster Store - 3D</title>
+    <title>BeKindRewind Video Store</title>
     <style>
         * {
             margin: 0;
@@ -29,8 +29,8 @@
             left: 20px;
             padding: 10px 20px;
             background: rgba(0, 0, 0, 0.7);
-            color: #FFD700;
-            border: 2px solid #FFD700;
+            color: #FFD600;
+            border: 2px solid #FFD600;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
@@ -41,7 +41,7 @@
         }
 
         #backButton:hover {
-            background: #FFD700;
+            background: #FFD600;
             color: #000;
         }
 
@@ -52,97 +52,43 @@
             transform: translate(-50%, -50%);
             width: 30px;
             height: 30px;
-            border: 2px solid rgba(255, 215, 0, 0.5);
+            border: 2px solid #FFD600;
             border-radius: 50%;
             pointer-events: none;
             z-index: 5;
         }
 
-        #crosshair::before,
-        #crosshair::after {
-            content: '';
-            position: absolute;
-            background: rgba(255, 215, 0, 0.5);
-        }
-
-        #crosshair::before {
-            width: 2px;
-            height: 10px;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        #crosshair::after {
-            width: 10px;
-            height: 2px;
-            left: -15px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        #infoText {
+        #instructions {
             position: absolute;
             bottom: 20px;
             left: 20px;
-            color: #FFD700;
+            color: #FFD600;
             font-size: 14px;
             background: rgba(0, 0, 0, 0.7);
             padding: 10px 15px;
-            border: 1px solid #FFD700;
+            border: 1px solid #FFD600;
             z-index: 5;
             pointer-events: none;
         }
 
-        #joystick {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 100px;
-            height: 100px;
-            background: rgba(255, 215, 0, 0.2);
-            border: 2px solid #FFD700;
-            border-radius: 50%;
-            display: none;
-            z-index: 5;
-        }
-
-        #joystick.mobile {
-            display: block;
-        }
-
-        #joystickStick {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: #FFD700;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        #movieTitle {
+        #genreLabel {
             position: absolute;
             bottom: 60px;
             left: 50%;
             transform: translateX(-50%);
-            color: #ffffff;
-            font-size: 18px;
+            color: #FFD600;
+            font-size: 16px;
             font-weight: bold;
             background: rgba(0, 0, 0, 0.8);
-            padding: 10px 20px;
-            border: 1px solid #FFD700;
+            padding: 8px 16px;
+            border: 1px solid #FFD600;
             z-index: 5;
             pointer-events: none;
             display: none;
             white-space: nowrap;
-            max-width: 80vw;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
-        #detailOverlay {
+        #detailPanel {
             position: fixed;
             top: 0;
             left: 0;
@@ -158,60 +104,93 @@
 
         #detailContent {
             background: #0f1628;
-            color: #ffffff;
-            padding: 30px;
             border: 3px solid #FFD600;
             border-radius: 8px;
-            max-width: 400px;
+            padding: 40px;
+            max-width: 500px;
             max-height: 80vh;
             overflow-y: auto;
-            box-shadow: 0 0 20px rgba(255, 214, 0, 0.3);
-        }
-
-        #detailContent img {
-            width: 100%;
-            max-height: 250px;
-            object-fit: cover;
-            border: 2px solid #FFD600;
-            margin-bottom: 15px;
-            display: block;
+            box-shadow: 0 0 30px rgba(255, 214, 0, 0.4);
         }
 
         #detailContent h2 {
             color: #FFD600;
-            margin-bottom: 10px;
-            font-size: 24px;
+            margin-bottom: 20px;
+            font-size: 28px;
         }
 
         #detailContent p {
-            margin-bottom: 8px;
-            font-size: 14px;
-            line-height: 1.5;
+            color: #ffffff;
+            margin-bottom: 15px;
+            font-size: 16px;
+            line-height: 1.6;
         }
 
         #detailContent strong {
             color: #FFD600;
+        }
+
+        #closeButton {
+            color: #FFD600;
+            font-size: 12px;
+            margin-top: 20px;
+            text-align: center;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        #joystick {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 215, 0, 0.2);
+            border: 2px solid #FFD600;
+            border-radius: 50%;
+            display: none;
+            z-index: 5;
+        }
+
+        #joystick.mobile {
+            display: block;
+        }
+
+        #joystickStick {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #FFD600;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>
 <body>
     <a id="backButton" href="index.html">← Back to Collection</a>
     <div id="crosshair"></div>
-    <div id="infoText">Click to look around | WASD to move | ESC to release mouse</div>
+    <div id="instructions">Click to explore | WASD to move | ESC to release</div>
+    <div id="genreLabel"></div>
+    <div id="detailPanel">
+        <div id="detailContent">
+            <h2 id="detailTitle">DVD Case</h2>
+            <p><strong>Genre:</strong> <span id="detailGenre">Unknown</span></p>
+            <p>Classic film from the BeKindRewind collection.</p>
+            <p id="closeButton">Click anywhere to close</p>
+        </div>
+    </div>
     <div id="joystick">
         <div id="joystickStick"></div>
-    </div>
-    <div id="movieTitle"></div>
-    <div id="detailOverlay">
-        <div id="detailContent"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Scene setup
+        // Scene & Camera Setup
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a2e);
-        scene.fog = new THREE.Fog(0x1a1a2e, 120, 200);
+        scene.background = new THREE.Color(0x1a1a1a);
+        scene.fog = new THREE.Fog(0x1a1a1a, 80, 120);
 
         const canvas = document.createElement('canvas');
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -220,617 +199,448 @@
         renderer.shadowMap.type = THREE.PCFShadowShadowMap;
         document.body.appendChild(canvas);
 
-        // Camera setup - start at entrance facing down aisles
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.7, -15);
+        camera.position.set(0, 1.7, 35);
 
-        // Store dimensions
+        // Store Constants
         const STORE_WIDTH = 60;
         const STORE_DEPTH = 40;
-        const STORE_HEIGHT = 14;
-        const CEILING_HEIGHT = 10;
+        const CEILING_HEIGHT = 4.5;
         const FLOOR_Y = 0;
 
-        // Colors (Blockbuster blue/yellow)
-        const BLOCKBUSTER_BLUE = 0x003087;
+        // Colors
         const BLOCKBUSTER_YELLOW = 0xFFD600;
-        const DARK_FLOOR = 0x1a1a1a;
+        const BLOCKBUSTER_NAVY = 0x003087;
+        const DARK_FLOOR = 0x2a2a2a;
+        const WOOD_COLOR = 0x8B5E3C;
+        const LIGHT_GREY = 0xcccccc;
+        const DARK_GREY = 0x555555;
 
         // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        const ambientLight = new THREE.AmbientLight(0x333322, 0.4);
         scene.add(ambientLight);
 
-        // Fluorescent lights
-        const lightPositions = [
-            { x: -15, z: -15 },
-            { x: 0, z: -15 },
-            { x: 15, z: -15 },
-            { x: -15, z: 5 },
-            { x: 0, z: 5 },
-            { x: 15, z: 5 }
-        ];
+        // ===== ENVIRONMENT =====
 
-        lightPositions.forEach(pos => {
-            const light = new THREE.PointLight(0xffffff, 0.8, 50);
-            light.position.set(pos.x, CEILING_HEIGHT - 0.5, pos.z);
-            light.castShadow = true;
-            light.shadow.mapSize.width = 512;
-            light.shadow.mapSize.height = 512;
-            scene.add(light);
-        });
-
-        // Floor with geometric carpet pattern
+        // Floor
         const floorGeometry = new THREE.PlaneGeometry(STORE_WIDTH, STORE_DEPTH);
-        const darkCharcoal = 0x1a1a1a;
-        const darkerCharcoal = 0x111111;
-        const floorMaterial = new THREE.MeshLambertMaterial({ color: darkCharcoal });
+        const floorMaterial = new THREE.MeshLambertMaterial({ color: DARK_FLOOR });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
+        floor.position.y = FLOOR_Y;
         floor.receiveShadow = true;
         scene.add(floor);
 
-        // Carpet pattern (subtle darker geometric pattern)
-        const carpetPattern = new THREE.Group();
+        // Floor tiles pattern
         const tileSize = 3;
+        const floorTiles = new THREE.Group();
+        const darkerTile = 0x1a1a1a;
         for (let x = -STORE_WIDTH / 2; x < STORE_WIDTH / 2; x += tileSize) {
             for (let z = -STORE_DEPTH / 2; z < STORE_DEPTH / 2; z += tileSize) {
-                const tileGeometry = new THREE.PlaneGeometry(tileSize - 0.05, tileSize - 0.05);
-                const isPattern = ((Math.floor(x / tileSize) + Math.floor(z / tileSize)) % 3 === 0);
-                const color = isPattern ? darkerCharcoal : darkCharcoal;
-                const tileMaterial = new THREE.MeshLambertMaterial({ color });
-                const tile = new THREE.Mesh(tileGeometry, tileMaterial);
-                tile.position.set(x + tileSize / 2, 0.01, z + tileSize / 2);
+                const tileGeo = new THREE.PlaneGeometry(tileSize - 0.05, tileSize - 0.05);
+                const tileMat = new THREE.MeshLambertMaterial({
+                    color: ((Math.floor(x / tileSize) + Math.floor(z / tileSize)) % 2 === 0) ? DARK_FLOOR : darkerTile
+                });
+                const tile = new THREE.Mesh(tileGeo, tileMat);
+                tile.position.set(x + tileSize / 2, FLOOR_Y + 0.01, z + tileSize / 2);
                 tile.rotation.x = -Math.PI / 2;
-                carpetPattern.add(tile);
+                floorTiles.add(tile);
             }
         }
-        scene.add(carpetPattern);
+        scene.add(floorTiles);
 
         // Ceiling
         const ceilingGeometry = new THREE.PlaneGeometry(STORE_WIDTH, STORE_DEPTH);
-        const ceilingMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+        const ceilingMaterial = new THREE.MeshLambertMaterial({ color: LIGHT_GREY });
         const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
-        ceiling.position.y = CEILING_HEIGHT;
         ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.y = CEILING_HEIGHT;
         ceiling.receiveShadow = true;
         scene.add(ceiling);
 
-        // Ceiling tiles (drop ceiling)
+        // Ceiling tiles
         const ceilingTiles = new THREE.Group();
-        const tileSizeC = 6;
-        for (let x = -STORE_WIDTH / 2; x < STORE_WIDTH / 2; x += tileSizeC) {
-            for (let z = -STORE_DEPTH / 2; z < STORE_DEPTH / 2; z += tileSizeC) {
-                const tileGeometry = new THREE.PlaneGeometry(tileSizeC - 0.15, tileSizeC - 0.15);
-                const tileMaterial = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
-                const tile = new THREE.Mesh(tileGeometry, tileMaterial);
-                tile.position.set(x + tileSizeC / 2, CEILING_HEIGHT - 0.05, z + tileSizeC / 2);
+        const cTileSize = 6;
+        const darkGrey = 0xaaaaaa;
+        for (let x = -STORE_WIDTH / 2; x < STORE_WIDTH / 2; x += cTileSize) {
+            for (let z = -STORE_DEPTH / 2; z < STORE_DEPTH / 2; z += cTileSize) {
+                const tileGeo = new THREE.PlaneGeometry(cTileSize - 0.15, cTileSize - 0.15);
+                const tileMat = new THREE.MeshLambertMaterial({ color: darkGrey });
+                const tile = new THREE.Mesh(tileGeo, tileMat);
+                tile.position.set(x + cTileSize / 2, CEILING_HEIGHT - 0.05, z + cTileSize / 2);
                 tile.rotation.x = Math.PI / 2;
                 ceilingTiles.add(tile);
             }
         }
         scene.add(ceilingTiles);
 
-        // Walls - Blockbuster style (yellow upper, navy lower with stripe)
-        // Back wall upper (yellow)
-        const backWallUpperGeometry = new THREE.PlaneGeometry(STORE_WIDTH, STORE_HEIGHT / 2);
-        const backWallUpperMaterial = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_YELLOW });
-        const backWallUpper = new THREE.Mesh(backWallUpperGeometry, backWallUpperMaterial);
-        backWallUpper.position.set(0, STORE_HEIGHT * 0.75, STORE_DEPTH / 2);
-        backWallUpper.castShadow = true;
-        backWallUpper.receiveShadow = true;
-        scene.add(backWallUpper);
+        // Walls
+        const wallHeight = CEILING_HEIGHT;
+        const wallLowerHeight = wallHeight * 0.6; // 60% = navy
+        const wallUpperHeight = wallHeight * 0.4; // 40% = yellow
+        const stripeY = wallLowerHeight;
 
-        // Back wall lower (navy)
-        const backWallLowerGeometry = new THREE.PlaneGeometry(STORE_WIDTH, STORE_HEIGHT / 2 - 0.4);
-        const backWallLowerMaterial = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_BLUE });
-        const backWallLower = new THREE.Mesh(backWallLowerGeometry, backWallLowerMaterial);
-        backWallLower.position.set(0, STORE_HEIGHT * 0.25, STORE_DEPTH / 2);
+        // Back wall
+        const backWallLowerGeo = new THREE.PlaneGeometry(STORE_WIDTH, wallLowerHeight);
+        const backWallLowerMat = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_NAVY });
+        const backWallLower = new THREE.Mesh(backWallLowerGeo, backWallLowerMat);
+        backWallLower.position.set(0, wallLowerHeight / 2, STORE_DEPTH / 2);
         backWallLower.castShadow = true;
         backWallLower.receiveShadow = true;
         scene.add(backWallLower);
 
-        // Back wall dividing stripe
-        const backStripeGeometry = new THREE.PlaneGeometry(STORE_WIDTH, 0.4);
-        const stripeMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
-        const backStripe = new THREE.Mesh(backStripeGeometry, stripeMaterial);
-        backStripe.position.set(0, STORE_HEIGHT / 2, STORE_DEPTH / 2 + 0.02);
+        const backWallUpperGeo = new THREE.PlaneGeometry(STORE_WIDTH, wallUpperHeight);
+        const backWallUpperMat = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_YELLOW });
+        const backWallUpper = new THREE.Mesh(backWallUpperGeo, backWallUpperMat);
+        backWallUpper.position.set(0, wallLowerHeight + wallUpperHeight / 2, STORE_DEPTH / 2);
+        backWallUpper.castShadow = true;
+        backWallUpper.receiveShadow = true;
+        scene.add(backWallUpper);
+
+        // Back wall stripe
+        const stripeGeo = new THREE.PlaneGeometry(STORE_WIDTH, 0.1);
+        const stripeMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        const backStripe = new THREE.Mesh(stripeGeo, stripeMat);
+        backStripe.position.set(0, stripeY + 0.05, STORE_DEPTH / 2 + 0.01);
         backStripe.castShadow = true;
         scene.add(backStripe);
 
-        // Front wall upper (yellow) - with opening for entrance
-        const frontWallLeftUpper = new THREE.Mesh(
-            new THREE.PlaneGeometry(STORE_WIDTH / 2 - 5, STORE_HEIGHT / 2),
-            backWallUpperMaterial
-        );
-        frontWallLeftUpper.position.set(-STORE_WIDTH / 4 - 2.5, STORE_HEIGHT * 0.75, -STORE_DEPTH / 2);
-        frontWallLeftUpper.castShadow = true;
-        frontWallLeftUpper.receiveShadow = true;
-        scene.add(frontWallLeftUpper);
+        // Front wall (with entrance opening)
+        const entranceWidth = 10;
+        const frontWallOffset = entranceWidth / 2 + 5;
 
-        const frontWallRightUpper = new THREE.Mesh(
-            new THREE.PlaneGeometry(STORE_WIDTH / 2 - 5, STORE_HEIGHT / 2),
-            backWallUpperMaterial
-        );
-        frontWallRightUpper.position.set(STORE_WIDTH / 4 + 2.5, STORE_HEIGHT * 0.75, -STORE_DEPTH / 2);
-        frontWallRightUpper.castShadow = true;
-        frontWallRightUpper.receiveShadow = true;
-        scene.add(frontWallRightUpper);
-
-        // Front wall lower (navy)
-        const frontWallLeftLower = new THREE.Mesh(
-            new THREE.PlaneGeometry(STORE_WIDTH / 2 - 5, STORE_HEIGHT / 2 - 0.4),
-            backWallLowerMaterial
-        );
-        frontWallLeftLower.position.set(-STORE_WIDTH / 4 - 2.5, STORE_HEIGHT * 0.25, -STORE_DEPTH / 2);
+        const frontWallLeftGeo = new THREE.PlaneGeometry(STORE_WIDTH / 2 - frontWallOffset, wallLowerHeight);
+        const frontWallLeftLowerMat = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_NAVY });
+        const frontWallLeftLower = new THREE.Mesh(frontWallLeftGeo, frontWallLeftLowerMat);
+        frontWallLeftLower.position.set(-STORE_WIDTH / 4 - frontWallOffset / 2, wallLowerHeight / 2, -STORE_DEPTH / 2);
         frontWallLeftLower.castShadow = true;
         frontWallLeftLower.receiveShadow = true;
         scene.add(frontWallLeftLower);
 
-        const frontWallRightLower = new THREE.Mesh(
-            new THREE.PlaneGeometry(STORE_WIDTH / 2 - 5, STORE_HEIGHT / 2 - 0.4),
-            backWallLowerMaterial
-        );
-        frontWallRightLower.position.set(STORE_WIDTH / 4 + 2.5, STORE_HEIGHT * 0.25, -STORE_DEPTH / 2);
+        const frontWallRightGeo = new THREE.PlaneGeometry(STORE_WIDTH / 2 - frontWallOffset, wallLowerHeight);
+        const frontWallRightLowerMat = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_NAVY });
+        const frontWallRightLower = new THREE.Mesh(frontWallRightGeo, frontWallRightLowerMat);
+        frontWallRightLower.position.set(STORE_WIDTH / 4 + frontWallOffset / 2, wallLowerHeight / 2, -STORE_DEPTH / 2);
         frontWallRightLower.castShadow = true;
         frontWallRightLower.receiveShadow = true;
         scene.add(frontWallRightLower);
 
-        // Side walls - upper (yellow)
-        const sideWallUpperGeometry = new THREE.PlaneGeometry(STORE_DEPTH, STORE_HEIGHT / 2);
-        const sideWallUpperMaterial = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_YELLOW });
+        const frontWallLeftUpperGeo = new THREE.PlaneGeometry(STORE_WIDTH / 2 - frontWallOffset, wallUpperHeight);
+        const frontWallLeftUpperMat = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_YELLOW });
+        const frontWallLeftUpper = new THREE.Mesh(frontWallLeftUpperGeo, frontWallLeftUpperMat);
+        frontWallLeftUpper.position.set(-STORE_WIDTH / 4 - frontWallOffset / 2, wallLowerHeight + wallUpperHeight / 2, -STORE_DEPTH / 2);
+        frontWallLeftUpper.castShadow = true;
+        frontWallLeftUpper.receiveShadow = true;
+        scene.add(frontWallLeftUpper);
 
-        const leftWallUpper = new THREE.Mesh(sideWallUpperGeometry, sideWallUpperMaterial);
-        leftWallUpper.position.set(-STORE_WIDTH / 2, STORE_HEIGHT * 0.75, 0);
-        leftWallUpper.rotation.y = Math.PI / 2;
-        leftWallUpper.castShadow = true;
-        leftWallUpper.receiveShadow = true;
-        scene.add(leftWallUpper);
+        const frontWallRightUpperGeo = new THREE.PlaneGeometry(STORE_WIDTH / 2 - frontWallOffset, wallUpperHeight);
+        const frontWallRightUpperMat = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_YELLOW });
+        const frontWallRightUpper = new THREE.Mesh(frontWallRightUpperGeo, frontWallRightUpperMat);
+        frontWallRightUpper.position.set(STORE_WIDTH / 4 + frontWallOffset / 2, wallLowerHeight + wallUpperHeight / 2, -STORE_DEPTH / 2);
+        frontWallRightUpper.castShadow = true;
+        frontWallRightUpper.receiveShadow = true;
+        scene.add(frontWallRightUpper);
 
-        const rightWallUpper = new THREE.Mesh(sideWallUpperGeometry, sideWallUpperMaterial);
-        rightWallUpper.position.set(STORE_WIDTH / 2, STORE_HEIGHT * 0.75, 0);
-        rightWallUpper.rotation.y = -Math.PI / 2;
-        rightWallUpper.castShadow = true;
-        rightWallUpper.receiveShadow = true;
-        scene.add(rightWallUpper);
+        // Front wall stripe
+        const frontStripe = new THREE.Mesh(stripeGeo, stripeMat);
+        frontStripe.position.set(0, stripeY + 0.05, -STORE_DEPTH / 2 - 0.01);
+        frontStripe.castShadow = true;
+        scene.add(frontStripe);
 
-        // Side walls - lower (navy)
-        const sideWallLowerGeometry = new THREE.PlaneGeometry(STORE_DEPTH, STORE_HEIGHT / 2 - 0.4);
-        const sideWallLowerMaterial = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_BLUE });
+        // Side walls
+        const sideWallGeo = new THREE.PlaneGeometry(STORE_DEPTH, wallLowerHeight);
+        const sideWallMatLower = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_NAVY });
 
-        const leftWallLower = new THREE.Mesh(sideWallLowerGeometry, sideWallLowerMaterial);
-        leftWallLower.position.set(-STORE_WIDTH / 2, STORE_HEIGHT * 0.25, 0);
+        const leftWallLower = new THREE.Mesh(sideWallGeo, sideWallMatLower);
         leftWallLower.rotation.y = Math.PI / 2;
+        leftWallLower.position.set(-STORE_WIDTH / 2, wallLowerHeight / 2, 0);
         leftWallLower.castShadow = true;
         leftWallLower.receiveShadow = true;
         scene.add(leftWallLower);
 
-        const rightWallLower = new THREE.Mesh(sideWallLowerGeometry, sideWallLowerMaterial);
-        rightWallLower.position.set(STORE_WIDTH / 2, STORE_HEIGHT * 0.25, 0);
+        const rightWallLower = new THREE.Mesh(sideWallGeo, sideWallMatLower);
         rightWallLower.rotation.y = -Math.PI / 2;
+        rightWallLower.position.set(STORE_WIDTH / 2, wallLowerHeight / 2, 0);
         rightWallLower.castShadow = true;
         rightWallLower.receiveShadow = true;
         scene.add(rightWallLower);
 
-        // Side wall dividing stripes
-        const sideStripeGeometry = new THREE.PlaneGeometry(STORE_DEPTH, 0.4);
-        const leftStripe = new THREE.Mesh(sideStripeGeometry, stripeMaterial);
-        leftStripe.position.set(-STORE_WIDTH / 2 + 0.02, STORE_HEIGHT / 2, 0);
+        const sideWallUpperGeo = new THREE.PlaneGeometry(STORE_DEPTH, wallUpperHeight);
+        const sideWallMatUpper = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_YELLOW });
+
+        const leftWallUpper = new THREE.Mesh(sideWallUpperGeo, sideWallMatUpper);
+        leftWallUpper.rotation.y = Math.PI / 2;
+        leftWallUpper.position.set(-STORE_WIDTH / 2, wallLowerHeight + wallUpperHeight / 2, 0);
+        leftWallUpper.castShadow = true;
+        leftWallUpper.receiveShadow = true;
+        scene.add(leftWallUpper);
+
+        const rightWallUpper = new THREE.Mesh(sideWallUpperGeo, sideWallMatUpper);
+        rightWallUpper.rotation.y = -Math.PI / 2;
+        rightWallUpper.position.set(STORE_WIDTH / 2, wallLowerHeight + wallUpperHeight / 2, 0);
+        rightWallUpper.castShadow = true;
+        rightWallUpper.receiveShadow = true;
+        scene.add(rightWallUpper);
+
+        // Side wall stripes
+        const sideStripeGeo = new THREE.PlaneGeometry(STORE_DEPTH, 0.1);
+        const leftStripe = new THREE.Mesh(sideStripeGeo, stripeMat);
         leftStripe.rotation.y = Math.PI / 2;
+        leftStripe.position.set(-STORE_WIDTH / 2 + 0.01, stripeY + 0.05, 0);
         leftStripe.castShadow = true;
         scene.add(leftStripe);
 
-        const rightStripe = new THREE.Mesh(sideStripeGeometry, stripeMaterial);
-        rightStripe.position.set(STORE_WIDTH / 2 - 0.02, STORE_HEIGHT / 2, 0);
+        const rightStripe = new THREE.Mesh(sideStripeGeo, stripeMat);
         rightStripe.rotation.y = -Math.PI / 2;
+        rightStripe.position.set(STORE_WIDTH / 2 - 0.01, stripeY + 0.05, 0);
         rightStripe.castShadow = true;
         scene.add(rightStripe);
 
-        // Front counter
-        const counterGeometry = new THREE.BoxGeometry(15, 1.2, 2);
-        const counterMaterial = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_YELLOW });
-        const counter = new THREE.Mesh(counterGeometry, counterMaterial);
-        counter.position.set(0, 0.6, -STORE_DEPTH / 2 + 3);
-        counter.castShadow = true;
-        counter.receiveShadow = true;
-        scene.add(counter);
+        // ===== SHELVING SYSTEM =====
 
-        // TV in corner
-        const tvGeometry = new THREE.BoxGeometry(3, 2.5, 0.3);
-        const tvMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
-        const tv = new THREE.Mesh(tvGeometry, tvMaterial);
-        tv.position.set(STORE_WIDTH / 2 - 3, 2, -STORE_DEPTH / 2 + 3);
-        tv.castShadow = true;
-        tv.receiveShadow = true;
-        scene.add(tv);
+        const genres = ['Horror', 'Drama', 'Action', 'Thriller', 'Sci-Fi', 'Comedy'];
+        const genreColors = {
+            'Horror': 0x4a0a0a,
+            'Drama': 0x3a3a0a,
+            'Action': 0x4a2a0a,
+            'Thriller': 0x0a0a4a,
+            'Sci-Fi': 0x0a3a3a,
+            'Comedy': 0x3a3a00,
+            'Animation': 0x0a3a0a,
+            'Romance': 0x4a0a2a,
+            'Documentary': 0x2a2a2a,
+            'Western': 0x2a2a2a
+        };
 
-        // Shelves and aisles - double-sided tall units per genre
-        const genres = ['Horror', 'Romance', 'Action', 'Drama', 'Thriller', 'Sci-Fi'];
+        const aislePositions = [-25, -15, -5, 5, 15, 25];
+        const shelfLevels = [0.3, 0.9, 1.5];
         const shelfColliders = [];
-        const aisleCenters = [-20, -12, -4, 4, 12, 20];
-        const aisleShelves = {};
-        const wallShelves = { left: [], right: [] };
+        let totalCasesPlaced = 0;
 
-        genres.forEach((genre, index) => {
-            const xPos = aisleCenters[index];
-            const shelfLevels = [0.5, 1.5, 2.5, 3.5];
+        // Aisle shelves
+        genres.forEach((genre, idx) => {
+            const aisleCenterX = aislePositions[idx];
+            const aisleFrontZ = -14;
+            const aisleBackZ = 18;
+            const aisleLengthZ = aisleBackZ - aisleFrontZ;
 
-            // Move shelves back - clear first 4 units from entrance (z: -20 to -16)
-            const aisleFrontZ = 18;
-            const aisleFrontZZ = -14; // Moved back to clear entrance
+            const aisle = new THREE.Group();
+            aisle.position.x = aisleCenterX;
 
-            // Create double-sided shelf unit running front-to-back
-            const shelfGroup = new THREE.Group();
-            shelfGroup.position.set(xPos, 0, 0);
-
-            // Vertical supports (4 posts along the aisle)
-            const supportGeometry = new THREE.BoxGeometry(0.3, 2, 0.3);
-            const supportMaterial = new THREE.MeshLambertMaterial({ color: 0x555555 });
-            const supportZPositions = [-10, -2, 6, 14];
-
-            supportZPositions.forEach(z => {
-                const support = new THREE.Mesh(supportGeometry, supportMaterial);
-                support.position.set(0, 1, z);
-                support.castShadow = true;
-                support.receiveShadow = true;
-                shelfGroup.add(support);
+            // Support posts
+            const supportGeo = new THREE.BoxGeometry(0.3, 1.5, 0.3);
+            const supportMat = new THREE.MeshLambertMaterial({ color: DARK_GREY });
+            [-10, -2, 6, 14].forEach(z => {
+                const post = new THREE.Mesh(supportGeo, supportMat);
+                post.position.set(0, 0.75, z);
+                post.castShadow = true;
+                post.receiveShadow = true;
+                aisle.add(post);
             });
 
-            // Shelves (4 levels) - thin shelf extending front to back
-            const shelfMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-
+            // Shelves (front and back facing)
+            const shelfMat = new THREE.MeshLambertMaterial({ color: WOOD_COLOR });
             shelfLevels.forEach(level => {
-                const shelfGeometry = new THREE.BoxGeometry(0.2, 0.2, 32);
-                const shelf = new THREE.Mesh(shelfGeometry, shelfMaterial);
-                shelf.position.y = level;
-                shelf.position.z = 2; // Offset to match front/back z range
+                const shelfGeo = new THREE.BoxGeometry(1.5, 0.2, aisleLengthZ);
+                const shelf = new THREE.Mesh(shelfGeo, shelfMat);
+                shelf.position.set(0, level, (aisleFrontZ + aisleBackZ) / 2);
                 shelf.castShadow = true;
                 shelf.receiveShadow = true;
-                shelfGroup.add(shelf);
+                aisle.add(shelf);
+
+                // Back panel
+                const panelGeo = new THREE.BoxGeometry(1.5, 1.5, 0.05);
+                const panelMat = new THREE.MeshLambertMaterial({ color: BLOCKBUSTER_NAVY });
+                const panel = new THREE.Mesh(panelGeo, panelMat);
+                panel.position.set(0, 0.75, (aisleFrontZ + aisleBackZ) / 2 + 0.3);
+                panel.castShadow = true;
+                panel.receiveShadow = true;
+                aisle.add(panel);
+
+                // Place DVD cases on this shelf level
+                const genreColor = genreColors[genre] || 0x2a2a2a;
+                let currentZ = aisleFrontZ;
+                const caseWidth = 0.38;
+                const caseHeight = 0.55;
+                const caseDepth = 0.05;
+                const caseGap = 0.01;
+                const caseSpacing = caseWidth + caseGap;
+
+                while (currentZ + caseWidth <= aisleBackZ) {
+                    const caseMat = new THREE.MeshBasicMaterial({
+                        color: new THREE.Color(genreColor).multiplyScalar(0.8 + Math.random() * 0.4)
+                    });
+                    const caseGeo = new THREE.BoxGeometry(caseWidth, caseHeight, caseDepth);
+                    const dvdCase = new THREE.Mesh(caseGeo, caseMat);
+                    dvdCase.position.set(0, level + caseHeight / 2, currentZ + caseWidth / 2);
+                    dvdCase.castShadow = true;
+                    dvdCase.receiveShadow = true;
+                    dvdCase.userData = { genre: genre };
+                    aisle.add(dvdCase);
+                    totalCasesPlaced++;
+
+                    currentZ += caseSpacing;
+                }
             });
 
-            scene.add(shelfGroup);
-
-            // Store shelf reference for poster placement
-            aisleShelves[genre] = {
-                xPos: xPos,
-                zRange: { min: aisleFrontZZ, max: aisleFrontZ },
-                levels: shelfLevels,
-                isWall: false
-            };
-
-            // Collision box for the aisle
-            shelfColliders.push({
-                position: new THREE.Vector3(xPos, 0, 0),
-                width: 1.5,
-                height: 2,
-                depth: 32
-            });
-
-            // Genre sign hanging above aisle at ceiling
+            // Genre sign at entrance
             const canvas2D = document.createElement('canvas');
             canvas2D.width = 256;
             canvas2D.height = 128;
             const ctx = canvas2D.getContext('2d');
-            ctx.fillStyle = BLOCKBUSTER_BLUE.toString(16).padStart(6, '0');
             ctx.fillStyle = '#003087';
             ctx.fillRect(0, 0, 256, 128);
             ctx.fillStyle = '#FFD600';
             ctx.font = 'bold 48px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(genre, 128, 64);
+            ctx.fillText(genre.toUpperCase(), 128, 64);
 
             const texture = new THREE.CanvasTexture(canvas2D);
-            const signGeometry = new THREE.PlaneGeometry(5, 1.5);
-            const signMaterial = new THREE.MeshLambertMaterial({ map: texture });
-            const sign = new THREE.Mesh(signGeometry, signMaterial);
-            sign.position.set(xPos, CEILING_HEIGHT - 1, 0);
+            const signGeo = new THREE.PlaneGeometry(3, 1.5);
+            const signMat = new THREE.MeshLambertMaterial({ map: texture });
+            const sign = new THREE.Mesh(signGeo, signMat);
+            sign.position.set(0, 2.2, -12);
             sign.castShadow = true;
             sign.receiveShadow = true;
-            scene.add(sign);
+            aisle.add(sign);
 
-            // Fluorescent strip light along ceiling above this aisle
-            const stripLight = new THREE.PointLight(0xffffff, 1.2, 100);
-            stripLight.position.set(xPos, CEILING_HEIGHT - 0.3, 0);
-            stripLight.castShadow = true;
-            stripLight.shadow.mapSize.width = 256;
-            stripLight.shadow.mapSize.height = 256;
-            scene.add(stripLight);
+            // Fluorescent light for this aisle
+            const light = new THREE.PointLight(0xffffff, 0.8, 50);
+            light.position.set(0, CEILING_HEIGHT - 0.2, 0);
+            light.castShadow = true;
+            light.shadow.mapSize.width = 256;
+            light.shadow.mapSize.height = 256;
+            aisle.add(light);
+
+            scene.add(aisle);
+
+            // Collision box for aisle
+            shelfColliders.push({
+                position: new THREE.Vector3(aisleCenterX, 0, (aisleFrontZ + aisleBackZ) / 2),
+                width: 1.5,
+                depth: aisleLengthZ,
+                height: 1.5
+            });
         });
 
-        // Wall shelves on left and right sides - running full length
-        const shelfLevels = [0.5, 1.5, 2.5, 3.5];
-        const wallShelfMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        // Checkout counter
+        const counterGeo = new THREE.BoxGeometry(4, 1, 2);
+        const counterMat = new THREE.MeshLambertMaterial({ color: WOOD_COLOR });
+        const counter = new THREE.Mesh(counterGeo, counterMat);
+        counter.position.set(-10, 0.5, -17);
+        counter.castShadow = true;
+        counter.receiveShadow = true;
+        scene.add(counter);
 
-        // Left wall shelves
-        const leftWallShelfGroup = new THREE.Group();
-        leftWallShelfGroup.position.set(-STORE_WIDTH / 2 + 1.5, 0, 0);
-        shelfLevels.forEach(level => {
-            const shelfGeometry = new THREE.BoxGeometry(0.2, 0.2, STORE_DEPTH - 4);
-            const shelf = new THREE.Mesh(shelfGeometry, wallShelfMaterial);
-            shelf.position.y = level;
-            shelf.castShadow = true;
-            shelf.receiveShadow = true;
-            leftWallShelfGroup.add(shelf);
+        // ===== MOVEMENT & CONTROLS =====
+
+        const keys = {};
+        const moveVector = new THREE.Vector3();
+        const playerRadius = 0.4;
+        let isWalking = false;
+
+        window.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
         });
-        scene.add(leftWallShelfGroup);
-        wallShelves.left = {
-            xPos: -STORE_WIDTH / 2 + 1.5,
-            zRange: { min: -STORE_DEPTH / 2 + 2, max: STORE_DEPTH / 2 - 2 },
-            levels: shelfLevels,
-            isWall: true
-        };
 
-        // Right wall shelves
-        const rightWallShelfGroup = new THREE.Group();
-        rightWallShelfGroup.position.set(STORE_WIDTH / 2 - 1.5, 0, 0);
-        shelfLevels.forEach(level => {
-            const shelfGeometry = new THREE.BoxGeometry(0.2, 0.2, STORE_DEPTH - 4);
-            const shelf = new THREE.Mesh(shelfGeometry, wallShelfMaterial);
-            shelf.position.y = level;
-            shelf.castShadow = true;
-            shelf.receiveShadow = true;
-            rightWallShelfGroup.add(shelf);
+        window.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
         });
-        scene.add(rightWallShelfGroup);
-        wallShelves.right = {
-            xPos: STORE_WIDTH / 2 - 1.5,
-            zRange: { min: -STORE_DEPTH / 2 + 2, max: STORE_DEPTH / 2 - 2 },
-            levels: shelfLevels,
-            isWall: true
-        };
 
-        // Movie posters data and setup
-        let movies = [];
-        let posterObjects = [];
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        let hoveredPoster = null;
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.crossOrigin = 'anonymous';
+        // Mouse look
+        let yaw = 0;
+        let pitch = 0;
+        let isPointerLocked = false;
 
-        function parseCSVLine(line) {
-            const values = [];
-            let current = '';
-            let inQuotes = false;
-
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-
-                if (char === '"') {
-                    if (inQuotes && line[i + 1] === '"') {
-                        current += '"';
-                        i++;
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
-                } else if (char === ',' && !inQuotes) {
-                    values.push(current.trim());
-                    current = '';
-                } else {
-                    current += char;
-                }
+        canvas.addEventListener('click', () => {
+            if (!isPointerLocked) {
+                canvas.requestPointerLock?.() || canvas.mozRequestPointerLock?.() || canvas.webkitRequestPointerLock?.();
             }
+        });
 
-            values.push(current.trim());
-            return values;
-        }
+        document.addEventListener('pointerlockchange', () => {
+            isPointerLocked = document.pointerLockElement === canvas;
+        });
 
-        async function loadMovies() {
-            try {
-                const url = `https://raw.githubusercontent.com/wonderdk/bekindrewind/main/movies.csv?t=${Date.now()}`;
-                const response = await fetch(url);
-                const csv = await response.text();
-                const lines = csv.trim().split('\n');
-                const headers = parseCSVLine(lines[0]);
-
-                for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-
-                    const values = parseCSVLine(line);
-                    const movie = {};
-                    headers.forEach((header, idx) => {
-                        movie[header] = values[idx] || '';
-                    });
-
-                    if (movie.hidden === 'true' || !movie.poster_url) continue;
-
-                    movies.push(movie);
-                }
-
-                console.log(`Loaded ${movies.length} films from CSV`);
-
-                // Group by first genre
-                const genreMap = {};
-                genres.forEach(g => genreMap[g] = []);
-
-                movies.forEach(movie => {
-                    const firstGenre = movie.genres ? movie.genres.split('|')[0].trim() : '';
-                    if (firstGenre && genreMap[firstGenre]) {
-                        genreMap[firstGenre].push(movie);
-                    }
-                });
-
-                let posterCount = 0;
-                const posterWidth = 0.5;
-                const posterHeight = 0.75;
-                const zSpacing = posterWidth;
-
-                // Create poster planes for aisle shelves
-                genres.forEach((genre) => {
-                    const aisle = aisleShelves[genre];
-                    if (!aisle) return;
-
-                    const moviesInGenre = genreMap[genre];
-                    const levelHeights = [0.5, 1.5, 2.5, 3.5];
-
-                    let movieIdx = 0;
-                    levelHeights.forEach((levelY) => {
-                        // Front side posters (facing -z direction, positive x offset)
-                        const frontMovies = moviesInGenre.slice(movieIdx, movieIdx + 30);
-                        let zOffset = aisle.zRange.min;
-
-                        frontMovies.forEach((movie) => {
-                            if (zOffset > aisle.zRange.max - posterWidth) return;
-
-                            const posterGeometry = new THREE.PlaneGeometry(posterWidth, posterHeight);
-                            const posterMaterial = new THREE.MeshBasicMaterial({
-                                map: textureLoader.load(movie.poster_url),
-                                side: THREE.FrontSide
-                            });
-
-                            const poster = new THREE.Mesh(posterGeometry, posterMaterial);
-                            poster.position.set(aisle.xPos + 0.3, levelY, zOffset);
-                            poster.rotation.y = 0;
-                            poster.castShadow = true;
-                            poster.receiveShadow = true;
-                            poster.userData = { movie };
-                            scene.add(poster);
-                            posterObjects.push(poster);
-                            posterCount++;
-
-                            zOffset += zSpacing;
-                        });
-
-                        movieIdx += frontMovies.length;
-
-                        // Back side posters (facing +z direction, negative x offset)
-                        zOffset = aisle.zRange.min;
-                        const backMovies = moviesInGenre.slice(movieIdx, movieIdx + 30);
-
-                        backMovies.forEach((movie) => {
-                            if (zOffset > aisle.zRange.max - posterWidth) return;
-
-                            const posterGeometry = new THREE.PlaneGeometry(posterWidth, posterHeight);
-                            const posterMaterial = new THREE.MeshBasicMaterial({
-                                map: textureLoader.load(movie.poster_url),
-                                side: THREE.FrontSide
-                            });
-
-                            const poster = new THREE.Mesh(posterGeometry, posterMaterial);
-                            poster.position.set(aisle.xPos - 0.3, levelY, zOffset);
-                            poster.rotation.y = Math.PI;
-                            poster.castShadow = true;
-                            poster.receiveShadow = true;
-                            poster.userData = { movie };
-                            scene.add(poster);
-                            posterObjects.push(poster);
-                            posterCount++;
-
-                            zOffset += zSpacing;
-                        });
-
-                        movieIdx += backMovies.length;
-                    });
-                });
-
-                // Distribute remaining movies across wall shelves
-                let remainingMovies = movies.slice(genres.length * 120);
-                let movieIdx = 0;
-                shelfLevels.forEach((levelY) => {
-                    let zOffset = wallShelves.left.zRange.min;
-
-                    while (movieIdx < remainingMovies.length && zOffset < wallShelves.left.zRange.max - posterWidth) {
-                        const movie = remainingMovies[movieIdx];
-                        const posterGeometry = new THREE.PlaneGeometry(posterWidth, posterHeight);
-                        const posterMaterial = new THREE.MeshBasicMaterial({
-                            map: textureLoader.load(movie.poster_url),
-                            side: THREE.FrontSide
-                        });
-
-                        const poster = new THREE.Mesh(posterGeometry, posterMaterial);
-                        poster.position.set(wallShelves.left.xPos, levelY, zOffset);
-                        poster.rotation.y = -Math.PI / 2;
-                        poster.castShadow = true;
-                        poster.receiveShadow = true;
-                        poster.userData = { movie };
-                        scene.add(poster);
-                        posterObjects.push(poster);
-                        posterCount++;
-
-                        zOffset += zSpacing;
-                        movieIdx++;
-                    }
-                });
-
-                // Right wall shelves
-                shelfLevels.forEach((levelY) => {
-                    let zOffset = wallShelves.right.zRange.min;
-
-                    while (movieIdx < remainingMovies.length && zOffset < wallShelves.right.zRange.max - posterWidth) {
-                        const movie = remainingMovies[movieIdx];
-                        const posterGeometry = new THREE.PlaneGeometry(posterWidth, posterHeight);
-                        const posterMaterial = new THREE.MeshBasicMaterial({
-                            map: textureLoader.load(movie.poster_url),
-                            side: THREE.FrontSide
-                        });
-
-                        const poster = new THREE.Mesh(posterGeometry, posterMaterial);
-                        poster.position.set(wallShelves.right.xPos, levelY, zOffset);
-                        poster.rotation.y = Math.PI / 2;
-                        poster.castShadow = true;
-                        poster.receiveShadow = true;
-                        poster.userData = { movie };
-                        scene.add(poster);
-                        posterObjects.push(poster);
-                        posterCount++;
-
-                        zOffset += zSpacing;
-                        movieIdx++;
-                    }
-                });
-
-                console.log(`Placed ${posterCount} posters on shelves`);
-            } catch (error) {
-                console.error('Failed to load movies:', error);
-            }
-        }
-
-        loadMovies();
-
-        function showMovieTitle(movie) {
-            const titleEl = document.getElementById('movieTitle');
-            titleEl.textContent = movie.title || 'Untitled';
-            titleEl.style.display = 'block';
-        }
-
-        function hideMovieTitle() {
-            document.getElementById('movieTitle').style.display = 'none';
-        }
-
-        function showDetailOverlay(movie) {
-            document.exitPointerLock?.();
-            const overlay = document.getElementById('detailOverlay');
-            const content = document.getElementById('detailContent');
-
-            const html = `
-                <img src="${movie.poster_url}" alt="${movie.title}" onerror="this.style.display='none'">
-                <h2>${movie.title || 'Untitled'}</h2>
-                ${movie.year ? `<p><strong>Year:</strong> ${movie.year}</p>` : ''}
-                ${movie.format ? `<p><strong>Format:</strong> ${movie.format}</p>` : ''}
-                ${movie.director ? `<p><strong>Director:</strong> ${movie.director}</p>` : ''}
-                ${movie.runtime ? `<p><strong>Runtime:</strong> ${movie.runtime}</p>` : ''}
-                ${movie.genres ? `<p><strong>Genres:</strong> ${movie.genres}</p>` : ''}
-            `;
-
-            content.innerHTML = html;
-            overlay.style.display = 'flex';
-        }
-
-        function hideDetailOverlay() {
-            document.getElementById('detailOverlay').style.display = 'none';
-        }
-
-        document.getElementById('detailOverlay').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('detailOverlay')) {
-                hideDetailOverlay();
+        document.addEventListener('mousemove', (e) => {
+            if (isPointerLocked) {
+                yaw -= e.movementX * 0.001;
+                pitch -= e.movementY * 0.001;
+                pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
             }
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                hideDetailOverlay();
+                document.exitPointerLock?.();
+            }
+        });
+
+        // Collision detection
+        function checkCollision(testPos) {
+            for (let collider of shelfColliders) {
+                const dx = testPos.x - collider.position.x;
+                const dz = testPos.z - collider.position.z;
+
+                const halfWidth = collider.width / 2 + playerRadius;
+                const halfDepth = collider.depth / 2 + playerRadius;
+
+                if (Math.abs(dx) < halfWidth && Math.abs(dz) < halfDepth) {
+                    return true;
+                }
+            }
+
+            const boundaryPadding = playerRadius + 0.5;
+            if (testPos.x < -STORE_WIDTH / 2 + boundaryPadding ||
+                testPos.x > STORE_WIDTH / 2 - boundaryPadding ||
+                testPos.z < -STORE_DEPTH / 2 + boundaryPadding ||
+                testPos.z > STORE_DEPTH / 2 - boundaryPadding) {
+                return true;
+            }
+
+            return false;
+        }
+
+        // ===== INTERACTION & RAYCASTING =====
+
+        const raycaster = new THREE.Raycaster();
+        let hoveredCase = null;
+        let allCases = [];
+
+        function collectAllCases(node) {
+            if (node.userData && node.userData.genre) {
+                allCases.push(node);
+            }
+            if (node.children) {
+                node.children.forEach(child => collectAllCases(child));
+            }
+        }
+        scene.traverse(child => collectAllCases(child));
+
+        // Detail panel
+        const detailPanel = document.getElementById('detailPanel');
+        const detailTitle = document.getElementById('detailTitle');
+        const detailGenre = document.getElementById('detailGenre');
+
+        canvas.addEventListener('click', () => {
+            if (hoveredCase && hoveredCase.userData.genre) {
+                document.exitPointerLock?.();
+                detailTitle.textContent = 'DVD Case';
+                detailGenre.textContent = hoveredCase.userData.genre;
+                detailPanel.style.display = 'flex';
+            }
+        });
+
+        detailPanel.addEventListener('click', (e) => {
+            if (e.target === detailPanel) {
+                detailPanel.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && detailPanel.style.display === 'flex') {
+                detailPanel.style.display = 'none';
             }
         });
 
@@ -841,52 +651,21 @@
         };
 
         const isMobileDevice = isMobile();
-
-        // Show/hide controls based on device
-        const infoText = document.getElementById('infoText');
-        const joystickEl = document.getElementById('joystick');
-
         if (isMobileDevice) {
-            infoText.textContent = 'Drag right half to look | Left joystick to move';
-            joystickEl.classList.add('mobile');
-        } else {
-            infoText.textContent = 'Click to look around | WASD to move | ESC to release mouse';
+            document.getElementById('instructions').textContent = 'Left drag to move | Right drag to look';
+            document.getElementById('joystick').classList.add('mobile');
         }
 
-        // Player movement
-        const keys = {};
-        const moveVector = new THREE.Vector3();
-        const velocity = new THREE.Vector3();
-        const playerRadius = 0.4;
-        let isWalking = false;
-
-        // Joystick state for mobile
+        // Joystick for mobile
         let joystickActive = false;
         let joystickX = 0;
         let joystickY = 0;
 
-        window.addEventListener('keydown', e => {
-            keys[e.key.toLowerCase()] = true;
-        });
-
-        window.addEventListener('keyup', e => {
-            keys[e.key.toLowerCase()] = false;
-        });
-
-        // Mouse look with pointer lock
-        let yaw = 0;
-        let pitch = 0;
-        let isPointerLocked = false;
-
-        // Joystick handling
         const joystick = document.getElementById('joystick');
         const joystickStick = document.getElementById('joystickStick');
 
-        joystick.addEventListener('touchstart', (e) => {
-            joystickActive = true;
-        });
-
-        joystick.addEventListener('touchend', (e) => {
+        joystick.addEventListener('touchstart', () => { joystickActive = true; });
+        joystick.addEventListener('touchend', () => {
             joystickActive = false;
             joystickX = 0;
             joystickY = 0;
@@ -914,7 +693,7 @@
             joystickStick.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
         });
 
-        // Touch look around (right half of screen for mobile)
+        // Touch look
         let touchStartX = 0;
         let touchStartY = 0;
 
@@ -941,78 +720,8 @@
             });
         }
 
-        canvas.addEventListener('click', () => {
-            // Check if hovering over a poster
-            if (hoveredPoster && hoveredPoster.userData.movie) {
-                showDetailOverlay(hoveredPoster.userData.movie);
-            } else if (!isMobileDevice) {
-                canvas.requestPointerLock?.() ||
-                canvas.mozRequestPointerLock?.() ||
-                canvas.webkitRequestPointerLock?.();
-            }
-        });
+        // ===== ANIMATION LOOP =====
 
-        document.addEventListener('pointerlockchange', () => {
-            isPointerLocked = document.pointerLockElement === canvas;
-            if (document.getElementById('detailOverlay').style.display === 'flex') {
-                document.exitPointerLock?.();
-            }
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (isPointerLocked && !isMobileDevice) {
-                yaw -= e.movementX * 0.0025;
-                pitch -= e.movementY * 0.0025;
-                pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
-            }
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                document.exitPointerLock?.();
-            }
-        });
-
-        // Collision detection with sliding
-        function checkCollisionAxis(testPos, axis) {
-            for (let collider of shelfColliders) {
-                const dx = testPos.x - collider.position.x;
-                const dz = testPos.z - collider.position.z;
-
-                const minX = -collider.width / 2 - playerRadius;
-                const maxX = collider.width / 2 + playerRadius;
-                const minZ = -collider.depth / 2 - playerRadius;
-                const maxZ = collider.depth / 2 + playerRadius;
-
-                if (axis === 'x') {
-                    if (dx > minX && dx < maxX && dz > minZ && dz < maxZ) {
-                        return true;
-                    }
-                } else if (axis === 'z') {
-                    if (dx > minX && dx < maxX && dz > minZ && dz < maxZ) {
-                        return true;
-                    }
-                }
-            }
-
-            // Boundary collision
-            const boundaryPadding = playerRadius + 0.5;
-            if (axis === 'x') {
-                if (testPos.x < -STORE_WIDTH / 2 + boundaryPadding ||
-                    testPos.x > STORE_WIDTH / 2 - boundaryPadding) {
-                    return true;
-                }
-            } else if (axis === 'z') {
-                if (testPos.z < -STORE_DEPTH / 2 + boundaryPadding ||
-                    testPos.z > STORE_DEPTH / 2 - boundaryPadding) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        // Animation loop
         let bobTime = 0;
         const clock = new THREE.Clock();
 
@@ -1021,14 +730,13 @@
 
             const deltaTime = Math.min(clock.getDelta(), 0.1);
 
-            // Movement input
+            // Movement
             moveVector.set(0, 0, 0);
             if (keys['w']) moveVector.z -= 1;
             if (keys['s']) moveVector.z += 1;
             if (keys['a']) moveVector.x -= 1;
             if (keys['d']) moveVector.x += 1;
 
-            // Mobile joystick input
             if (isMobileDevice && joystickActive) {
                 if (Math.abs(joystickX) > 0.1) moveVector.x += joystickX;
                 if (Math.abs(joystickY) > 0.1) moveVector.z += joystickY;
@@ -1039,71 +747,74 @@
             if (moveVector.length() > 0) {
                 moveVector.normalize();
 
-                // Rotate movement based on camera direction
                 const angle = yaw + Math.atan2(moveVector.x, moveVector.z);
-                const speed = 6;
-                velocity.x = Math.sin(angle) * speed * deltaTime;
-                velocity.z = Math.cos(angle) * speed * deltaTime;
+                const speed = 0.04;
+                const velocity = new THREE.Vector3(
+                    Math.sin(angle) * speed,
+                    0,
+                    Math.cos(angle) * speed
+                );
 
-                // Test collision separately for each axis (sliding)
+                // Sliding collision
                 const testPosX = camera.position.clone();
                 testPosX.x += velocity.x;
 
                 const testPosZ = camera.position.clone();
                 testPosZ.z += velocity.z;
 
-                // Apply X movement if no collision
-                if (!checkCollisionAxis(testPosX, 'x')) {
+                if (!checkCollision(testPosX)) {
                     camera.position.x += velocity.x;
                 }
 
-                // Apply Z movement if no collision
-                if (!checkCollisionAxis(testPosZ, 'z')) {
+                if (!checkCollision(testPosZ)) {
                     camera.position.z += velocity.z;
                 }
             }
 
-            // Camera bob while walking
+            // Camera bob
             if (isWalking) {
                 bobTime += deltaTime * 5;
-                camera.position.y = 1.7 + Math.sin(bobTime) * 0.1;
+                camera.position.y = 1.7 + Math.sin(bobTime) * 0.05;
             } else {
                 camera.position.y = 1.7;
                 bobTime = 0;
             }
 
-            // Update camera rotation
+            // Camera rotation
             camera.rotation.order = 'YXZ';
             camera.rotation.y = yaw;
             camera.rotation.x = pitch;
 
-            // Raycasting for poster hover
+            // Raycasting for hover
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(posterObjects);
+            const intersects = raycaster.intersectObjects(allCases);
 
+            const genreLabel = document.getElementById('genreLabel');
             if (intersects.length > 0) {
-                const poster = intersects[0].object;
-                if (hoveredPoster !== poster) {
-                    hoveredPoster = poster;
-                    showMovieTitle(poster.userData.movie);
+                const dvdCase = intersects[0].object;
+                if (hoveredCase !== dvdCase) {
+                    hoveredCase = dvdCase;
+                    genreLabel.textContent = dvdCase.userData.genre;
+                    genreLabel.style.display = 'block';
                 }
             } else {
-                if (hoveredPoster) {
-                    hoveredPoster = null;
-                    hideMovieTitle();
+                if (hoveredCase) {
+                    hoveredCase = null;
+                    genreLabel.style.display = 'none';
                 }
             }
 
             renderer.render(scene, camera);
         }
 
-        // Handle window resize
+        // Window resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
+        console.log(`Total DVD cases placed: ${totalCasesPlaced}`);
         animate();
     </script>
 </body>
