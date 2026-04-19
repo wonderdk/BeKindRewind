@@ -389,8 +389,8 @@
 
             if (!instancedMeshes[aisleBefore]) instancedMeshes[aisleBefore] = { left: [], right: [] };
             instancedMeshes[aisleBefore].left.push({
-              x: centerX - 0.1,
-              y: levelY + 0.21,
+              x: centerX - 0.06,
+              y: levelY + 0.28,
               z: zPos,
               rotY: -Math.PI / 2,
               genre: aisleBefore
@@ -418,8 +418,8 @@
 
             if (!instancedMeshes[aisleAfter]) instancedMeshes[aisleAfter] = { left: [], right: [] };
             instancedMeshes[aisleAfter].right.push({
-              x: centerX + 0.1,
-              y: levelY + 0.21,
+              x: centerX + 0.06,
+              y: levelY + 0.28,
               z: zPos,
               rotY: Math.PI / 2,
               genre: aisleAfter
@@ -437,7 +437,7 @@
       createShelfUnit(unitX, aisleBefore, aisleAfter);
     }
 
-    const caseGeometry = new THREE.BoxGeometry(0.38, 0.4, 0.05);
+    const caseGeometry = new THREE.BoxGeometry(0.38, 0.55, 0.05);
     for (const genre of genres) {
       if (instancedMeshes[genre]) {
         const allInstances = [...(instancedMeshes[genre].left || []), ...(instancedMeshes[genre].right || [])];
