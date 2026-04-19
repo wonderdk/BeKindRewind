@@ -138,7 +138,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     const moviesByGenre = {};
-    const textureCache = new Map();
 
     const aisleGenres = new Set([
       'Horror', 'Drama', 'Action', 'Thriller', 'Sci-Fi', 'Comedy',
@@ -243,28 +242,48 @@
       }
     }
 
+    const textureCache = new Map();
+    const textureQueue = new Map();
+
+    function applyTexture(mesh, texture) {
+      mesh.material[4] = new THREE.MeshBasicMaterial({ map: texture });
+      mesh.material[4].needsUpdate = true;
+    }
+
     function loadTexture(uid, mesh) {
       if (!uid) return;
-      if (textureCache.has(uid)) {
-        const cached = textureCache.get(uid);
-        if (cached) {
-          mesh.material[4] = new THREE.MeshBasicMaterial({ map: cached });
-          mesh.material[4].needsUpdate = true;
-        }
+
+      const cached = textureCache.get(uid);
+
+      if (cached === 'failed') return;
+
+      if (cached === 'loading') {
+        textureQueue.get(uid).push(mesh);
         return;
       }
-      // Mark as in-flight so duplicate requests don't fire
-      textureCache.set(uid, null);
+
+      if (cached instanceof THREE.Texture) {
+        applyTexture(mesh, cached);
+        return;
+      }
+
+      textureCache.set(uid, 'loading');
+      textureQueue.set(uid, [mesh]);
+
       const loader = new THREE.TextureLoader();
       loader.load(
         'https://wonderdk.github.io/bekindrewind/posters/' + uid + '.jpg',
         (texture) => {
           textureCache.set(uid, texture);
-          mesh.material[4] = new THREE.MeshBasicMaterial({ map: texture });
-          mesh.material[4].needsUpdate = true;
+          const waiting = textureQueue.get(uid) || [];
+          waiting.forEach(m => applyTexture(m, texture));
+          textureQueue.delete(uid);
         },
         undefined,
-        () => { /* 404 or error — leave solid color, don't retry */ }
+        () => {
+          textureCache.set(uid, 'failed');
+          textureQueue.delete(uid);
+        }
       );
     }
 
