@@ -245,10 +245,13 @@
 
     function loadTexture(uid, mesh) {
       if(textureCache.has(uid)) {
-        mesh.material[4] = new THREE.MeshBasicMaterial({ map: textureCache.get(uid) });
+        const cached = textureCache.get(uid);
+        if(cached === null) return;
+        mesh.material[4] = new THREE.MeshBasicMaterial({ map: cached });
         mesh.material[4].needsUpdate = true;
         return;
       }
+      textureCache.set(uid, null);
       const loader = new THREE.TextureLoader();
       loader.load(
         'https://wonderdk.github.io/bekindrewind/posters/' + uid + '.jpg',
@@ -267,8 +270,8 @@
     scene.fog = new THREE.Fog(0x1a1a1a, 80, 100);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 1.7, 19);
-    camera.lookAt(0, 1.7, -10);
+    camera.position.set(1.8, 1.7, 19);
+    camera.lookAt(1.8, 1.7, -10);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
