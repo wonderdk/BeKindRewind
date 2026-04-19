@@ -148,7 +148,7 @@
       'Drama': 0xffcc00,
       'Action': 0xffffff,
       'Thriller': 0x0099ff,
-      'Sci-Fi': 0x00ccff,
+      'Sci-Fi': 0x003087,
       'Comedy': 0xffff00
     };
 
@@ -195,7 +195,7 @@
     const leftWallUpperGeometry = new THREE.PlaneGeometry(40, 1.8);
     const wallUpperMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD600, roughness: 0.6 });
     const leftWallUpper = new THREE.Mesh(leftWallUpperGeometry, wallUpperMaterial);
-    leftWallUpper.position.set(-30, 3.6, 0);
+    leftWallUpper.position.set(-29.99, 3.6, 0);
     leftWallUpper.rotation.y = Math.PI / 2;
     scene.add(leftWallUpper);
 
@@ -212,7 +212,7 @@
     scene.add(rightWallLower);
 
     const rightWallUpper = new THREE.Mesh(leftWallUpperGeometry, wallUpperMaterial);
-    rightWallUpper.position.set(30, 3.6, 0);
+    rightWallUpper.position.set(29.99, 3.6, 0);
     rightWallUpper.rotation.y = -Math.PI / 2;
     scene.add(rightWallUpper);
 
@@ -226,7 +226,7 @@
     scene.add(backWallLower);
 
     const backWallUpper = new THREE.Mesh(new THREE.PlaneGeometry(60, 1.8), wallUpperMaterial);
-    backWallUpper.position.set(0, 3.6, -20);
+    backWallUpper.position.set(0, 3.6, -19.99);
     scene.add(backWallUpper);
 
     const backStripe = new THREE.Mesh(new THREE.PlaneGeometry(60, 0.1), wallStripeMaterial);
@@ -308,14 +308,15 @@
       const signBackGeometry = new THREE.PlaneGeometry(1.2, 0.6);
       const signBackMaterial = new THREE.MeshStandardMaterial({ color: backingColor });
       const signBack = new THREE.Mesh(signBackGeometry, signBackMaterial);
-      signBack.position.set(aisleCenterX, 2, -14);
+      const signZ = genres[aisle] === 'Sci-Fi' ? 8 : -14;
+      signBack.position.set(aisleCenterX, 2, signZ);
       signBack.castShadow = true;
       scene.add(signBack);
 
       const signTextGeometry = new THREE.BoxGeometry(1.0, 0.4, 0.02);
       const signTextMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD600 });
       const signText = new THREE.Mesh(signTextGeometry, signTextMaterial);
-      signText.position.set(aisleCenterX, 2, -13.97);
+      signText.position.set(aisleCenterX, 2, signZ + 0.03);
       scene.add(signText);
 
       const pointLight = new THREE.PointLight(genreLightColors[genres[aisle]], 0.6, 15);
