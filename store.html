@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BeKindRewind Video Store</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    canvas { display: block; }
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      border: 2px solid #FFD600;
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px #FFD600;
+      pointer-events: none;
+    }
+    #genreLabel {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #FFD600;
+      font-size: 14px;
+      pointer-events: none;
+      display: none;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+    #dvdOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 22, 40, 0.9);
+      display: none;
+      pointer-events: all;
+      z-index: 100;
+    }
+    #dvdInfo {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #0f1628;
+      border: 3px solid #FFD600;
+      padding: 30px;
+      border-radius: 8px;
+      color: #FFD600;
+      text-align: center;
+      font-size: 16px;
+      max-width: 300px;
+    }
+    #backButton {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 10px 20px;
+      background-color: #003087;
+      color: #FFD600;
+      border: 2px solid #FFD600;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      pointer-events: all;
+      z-index: 101;
+    }
+    #backButton:hover {
+      background-color: #005aff;
+    }
+    #instructions {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: #FFD600;
+      font-size: 12px;
+      pointer-events: none;
+    }
+    #loadingIndicator {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #FFD600;
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+    }
+    #hoverPanel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 150px;
+      background: #0f1628;
+      border: 2px solid #FFD600;
+      padding: 8px;
+      z-index: 1000;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="genreLabel"></div>
+    <div id="dvdOverlay">
+      <div id="dvdInfo">
+        <div style="font-size: 20px; margin-bottom: 20px;">Film Title</div>
+        <div style="margin-bottom: 20px; font-size: 14px; color: #cccccc;">[Click outside to close]</div>
+      </div>
+    </div>
+    <button id="backButton">← Back to Collection</button>
+    <div id="instructions">Click to explore | WASD to move</div>
+    <div id="loadingIndicator">Loading posters...</div>
+    <div id="hoverPanel" style="display:none; position:fixed; bottom:20px; right:20px; width:150px; background:#0f1628; border:2px solid #FFD600; padding:8px; z-index:1000;">
+      <img id="hoverPoster" src="" style="width:100%; display:block;">
+      <div id="hoverTitle" style="color:#FFD600; font-size:12px; text-align:center; margin-top:4px;"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    const moviesByGenre = {};
+    const textureCache = new Map();
+
+    const aisleGenres = new Set([
+      'Horror', 'Drama', 'Action', 'Thriller', 'Sci-Fi', 'Comedy',
+      'Animation', 'Crime', 'Adventure', 'Fantasy'
+    ]);
+
+    const secondaryMap = {
+      'War': 'Action',
+      'History': 'Drama',
+      'Mystery': 'Thriller',
+      'Romance': 'Drama',
+      'Family': 'Animation',
+      'Western': 'Adventure',
+      'Documentary': 'Drama',
+      'Music': 'Comedy',
+      'Sci-Fi': 'Sci-Fi'
+    };
+
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let insideQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          if (insideQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            insideQuotes = !insideQuotes;
+          }
+        } else if (char === ',' && !insideQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    async function loadMovieCSV() {
+      const loading = document.getElementById('loadingIndicator');
+      loading.style.display = 'block';
+      try {
+        const url = `https://raw.githubusercontent.com/wonderdk/bekindrewind/main/movies.csv?t=${Date.now()}`;
+        const response = await fetch(url);
+        const csv = await response.text();
+        const lines = csv.split('\n');
+        const header = parseCSVLine(lines[0]);
+
+        const movies = [];
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const values = parseCSVLine(lines[i]);
+          const movie = {};
+          for (let j = 0; j < header.length; j++) {
+            movie[header[j]] = values[j] || '';
+          }
+          if (!movie.uid || movie.uid.trim() === '') continue;
+          movies.push(movie);
+        }
+
+        for (const genre of aisleGenres) {
+          moviesByGenre[genre] = [];
+        }
+
+        for (const movie of movies) {
+          if (!movie.genre_ids) continue;
+          const genreIds = movie.genre_ids.split('|').map(g => g.trim().replace(/^["']|["']$/g, ''));
+          const targetGenres = new Set();
+
+          for (const genreId of genreIds) {
+            if (aisleGenres.has(genreId)) {
+              targetGenres.add(genreId);
+            }
+            if (secondaryMap[genreId] && aisleGenres.has(secondaryMap[genreId])) {
+              targetGenres.add(secondaryMap[genreId]);
+            }
+          }
+
+          for (const genre of targetGenres) {
+            moviesByGenre[genre].push(movie);
+          }
+        }
+
+        console.log(`Films loaded: ${movies.length}`);
+        for (const [genre, films] of Object.entries(moviesByGenre)) {
+          console.log(`${genre}: ${films.length} films`);
+        }
+        let casesWithFilm = 0;
+        for (const genreMovies of Object.values(moviesByGenre)) {
+          casesWithFilm += genreMovies.length;
+        }
+        console.log(`Cases with film data: ${casesWithFilm}`);
+
+        loading.style.display = 'none';
+      } catch (error) {
+        console.error('Error loading movies:', error);
+        loading.style.display = 'none';
+      }
+    }
+
+    function loadTexture(uid, mesh) {
+      if(textureCache.has(uid)) {
+        mesh.material[4] = new THREE.MeshBasicMaterial({ map: textureCache.get(uid) });
+        mesh.material[4].needsUpdate = true;
+        return;
+      }
+      const loader = new THREE.TextureLoader();
+      loader.load(
+        'https://wonderdk.github.io/bekindrewind/posters/' + uid + '.jpg',
+        (texture) => {
+          textureCache.set(uid, texture);
+          mesh.material[4] = new THREE.MeshBasicMaterial({ map: texture });
+          mesh.material[4].needsUpdate = true;
+        },
+        undefined,
+        () => { /* keep fallback color on error */ }
+      );
+    }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a1a);
+    scene.fog = new THREE.Fog(0x1a1a1a, 80, 100);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 1.7, 19);
+    camera.lookAt(0, 1.7, -10);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0x333322, 1.5);
+    scene.add(ambientLight);
+
+    const genres = ['Horror', 'Drama', 'Action', 'Thriller', 'Sci-Fi', 'Comedy', 'Animation', 'Crime', 'Adventure', 'Fantasy'];
+    const aislePositionsX = [-16.2, -12.6, -9, -5.4, -1.8, 1.8, 5.4, 9, 12.6, 16.2];
+
+    const genreBaseColors = {
+      'Horror': 0x8B0000,
+      'Drama': 0x8B6914,
+      'Action': 0x1a3a6a,
+      'Thriller': 0x2d4a2d,
+      'Sci-Fi': 0x1a4a5a,
+      'Comedy': 0x6a3a1a,
+      'Animation': 0x3a3a5a,
+      'Crime': 0x2a2a2a,
+      'Adventure': 0x1a5a2a,
+      'Fantasy': 0x4a1a4a
+    };
+
+    const genreLightColors = {
+      'Horror': 0xff6b6b,
+      'Drama': 0xffcc00,
+      'Action': 0xffa500,
+      'Thriller': 0x0099ff,
+      'Sci-Fi': 0x00ccff,
+      'Comedy': 0xffff99,
+      'Animation': 0xcc99ff,
+      'Crime': 0x999999,
+      'Adventure': 0x99ff99,
+      'Fantasy': 0xff99ff
+    };
+
+    const collisionBoxes = [
+      { x: -18, z: 2, w: 0.6, d: 34 },
+      { x: -14.4, z: 2, w: 0.6, d: 34 },
+      { x: -10.8, z: 2, w: 0.6, d: 34 },
+      { x: -7.2, z: 2, w: 0.6, d: 34 },
+      { x: -3.6, z: 2, w: 0.6, d: 34 },
+      { x: 0, z: 2, w: 0.6, d: 34 },
+      { x: 3.6, z: 2, w: 0.6, d: 34 },
+      { x: 7.2, z: 2, w: 0.6, d: 34 },
+      { x: 10.8, z: 2, w: 0.6, d: 34 },
+      { x: 14.4, z: 2, w: 0.6, d: 34 },
+      { x: 18, z: 2, w: 0.6, d: 34 },
+      { x: -5, z: -16.5, w: 4, d: 3 }
+    ];
+
+    const floorGeometry = new THREE.PlaneGeometry(40, 40);
+    const floorMaterial = new THREE.MeshBasicMaterial({ color: 0x3a3a3a });
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0;
+    scene.add(floor);
+
+    const gridCanvas = document.createElement('canvas');
+    gridCanvas.width = 512;
+    gridCanvas.height = 512;
+    const gridCtx = gridCanvas.getContext('2d');
+    gridCtx.fillStyle = '#3a3a3a';
+    gridCtx.fillRect(0, 0, 512, 512);
+    gridCtx.strokeStyle = '#2a2a2a';
+    gridCtx.lineWidth = 1;
+    for (let i = 0; i <= 512; i += 64) {
+      gridCtx.beginPath();
+      gridCtx.moveTo(i, 0);
+      gridCtx.lineTo(i, 512);
+      gridCtx.stroke();
+      gridCtx.beginPath();
+      gridCtx.moveTo(0, i);
+      gridCtx.lineTo(512, i);
+      gridCtx.stroke();
+    }
+    const gridTexture = new THREE.CanvasTexture(gridCanvas);
+    gridTexture.repeat.set(8, 8);
+    gridTexture.wrapS = THREE.RepeatWrapping;
+    gridTexture.wrapT = THREE.RepeatWrapping;
+    const tileGeometry = new THREE.PlaneGeometry(40, 40);
+    const tileMaterial = new THREE.MeshBasicMaterial({ map: gridTexture });
+    const tiles = new THREE.Mesh(tileGeometry, tileMaterial);
+    tiles.rotation.x = -Math.PI / 2;
+    tiles.position.y = 0.01;
+    scene.add(tiles);
+
+    const ceilingGeometry = new THREE.PlaneGeometry(40, 40);
+    const ceilingMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+    const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.y = 4.5;
+    scene.add(ceiling);
+
+
+    const leftWallLowerGeometry = new THREE.PlaneGeometry(40, 2.7);
+    const wallLowerMaterial = new THREE.MeshStandardMaterial({ color: 0x003087, roughness: 0.6 });
+    const leftWallLower = new THREE.Mesh(leftWallLowerGeometry, wallLowerMaterial);
+    leftWallLower.position.set(-20, 1.35, 0);
+    leftWallLower.rotation.y = Math.PI / 2;
+    scene.add(leftWallLower);
+
+    const leftWallUpperGeometry = new THREE.PlaneGeometry(40, 1.8);
+    const wallUpperMaterial = new THREE.MeshBasicMaterial({ color: 0xFFD600 });
+    const leftWallUpper = new THREE.Mesh(leftWallUpperGeometry, wallUpperMaterial);
+    leftWallUpper.position.set(-19.99, 3.6, 0);
+    leftWallUpper.rotation.y = Math.PI / 2;
+    scene.add(leftWallUpper);
+
+    const leftWallStripe = new THREE.PlaneGeometry(40, 0.1);
+    const wallStripeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+    const leftStripe = new THREE.Mesh(leftWallStripe, wallStripeMaterial);
+    leftStripe.position.set(-20, 2.7, 0);
+    leftStripe.rotation.y = Math.PI / 2;
+    scene.add(leftStripe);
+
+    const rightWallLower = new THREE.Mesh(leftWallLowerGeometry, wallLowerMaterial);
+    rightWallLower.position.set(20, 1.35, 0);
+    rightWallLower.rotation.y = -Math.PI / 2;
+    scene.add(rightWallLower);
+
+    const rightWallUpper = new THREE.Mesh(leftWallUpperGeometry, wallUpperMaterial);
+    rightWallUpper.position.set(19.99, 3.6, 0);
+    rightWallUpper.rotation.y = -Math.PI / 2;
+    scene.add(rightWallUpper);
+
+    const rightStripe = new THREE.Mesh(leftWallStripe, wallStripeMaterial);
+    rightStripe.position.set(20, 2.7, 0);
+    rightStripe.rotation.y = -Math.PI / 2;
+    scene.add(rightStripe);
+
+    const backWallLower = new THREE.Mesh(new THREE.PlaneGeometry(40, 2.7), wallLowerMaterial);
+    backWallLower.position.set(0, 1.35, -20);
+    scene.add(backWallLower);
+
+    const backWallUpper = new THREE.Mesh(new THREE.PlaneGeometry(40, 1.8), wallUpperMaterial);
+    backWallUpper.position.set(0, 3.6, -19.99);
+    scene.add(backWallUpper);
+
+    const backStripe = new THREE.Mesh(new THREE.PlaneGeometry(40, 0.1), wallStripeMaterial);
+    backStripe.position.set(0, 2.7, -20);
+    scene.add(backStripe);
+
+    const counterGeometry = new THREE.BoxGeometry(4, 0.9, 1);
+    const counterMaterial = new THREE.MeshStandardMaterial({ color: 0x8B5E3C, roughness: 0.7 });
+    const counter = new THREE.Mesh(counterGeometry, counterMaterial);
+    counter.position.set(-5, 0.45, -17);
+    counter.castShadow = true;
+    counter.receiveShadow = true;
+    scene.add(counter);
+
+    const registerGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.3);
+    const registerMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+    const register = new THREE.Mesh(registerGeometry, registerMaterial);
+    register.position.set(-5, 1.1, -17);
+    scene.add(register);
+
+    const checkoutSignCanvas = document.createElement('canvas');
+    checkoutSignCanvas.width = 512;
+    checkoutSignCanvas.height = 128;
+    const checkoutCtx = checkoutSignCanvas.getContext('2d');
+    checkoutCtx.fillStyle = '#003087';
+    checkoutCtx.fillRect(0, 0, 512, 128);
+    checkoutCtx.fillStyle = '#FFD600';
+    checkoutCtx.font = 'bold 80px Arial';
+    checkoutCtx.textAlign = 'center';
+    checkoutCtx.textBaseline = 'middle';
+    checkoutCtx.fillText('CHECKOUT', 256, 64);
+    const checkoutSignTexture = new THREE.CanvasTexture(checkoutSignCanvas);
+    const checkoutSignGeometry = new THREE.PlaneGeometry(3, 0.6);
+    const checkoutSignMaterial = new THREE.MeshBasicMaterial({ map: checkoutSignTexture });
+    const checkoutSign = new THREE.Mesh(checkoutSignGeometry, checkoutSignMaterial);
+    checkoutSign.position.set(-5, 3.8, -17);
+    checkoutSign.rotation.x = Math.PI / 2;
+    scene.add(checkoutSign);
+
+    const doorGeometry = new THREE.BoxGeometry(2, 2.8, 0.1);
+    const doorMaterial = new THREE.MeshBasicMaterial({ color: 0x505070 });
+    const leftDoor = new THREE.Mesh(doorGeometry, doorMaterial);
+    leftDoor.position.set(-1.15, 1.4, -20);
+    leftDoor.userData = { clickable: true, href: 'index.html' };
+    scene.add(leftDoor);
+    const rightDoor = new THREE.Mesh(doorGeometry, doorMaterial);
+    rightDoor.position.set(1.15, 1.4, -20);
+    rightDoor.userData = { clickable: true, href: 'index.html' };
+    scene.add(rightDoor);
+
+    const frameGeometry = new THREE.BoxGeometry(4.5, 3, 0.05);
+    const frameMaterial = new THREE.MeshBasicMaterial({ color: 0x1a1a2a });
+    const doorFrame = new THREE.Mesh(frameGeometry, frameMaterial);
+    doorFrame.position.set(0, 1.4, -20.05);
+    scene.add(doorFrame);
+
+    const exitSignCanvas = document.createElement('canvas');
+    exitSignCanvas.width = 256;
+    exitSignCanvas.height = 256;
+    const exitCtx = exitSignCanvas.getContext('2d');
+    exitCtx.fillStyle = '#003087';
+    exitCtx.fillRect(0, 0, 256, 256);
+    exitCtx.fillStyle = '#FFD600';
+    exitCtx.font = 'bold 60px Arial';
+    exitCtx.textAlign = 'center';
+    exitCtx.textBaseline = 'middle';
+    exitCtx.fillText('EXIT', 128, 128);
+    const exitSignTexture = new THREE.CanvasTexture(exitSignCanvas);
+    const exitSignGeometry = new THREE.PlaneGeometry(1.5, 0.6);
+    const exitSignMaterial = new THREE.MeshBasicMaterial({ map: exitSignTexture });
+    const exitSign = new THREE.Mesh(exitSignGeometry, exitSignMaterial);
+    exitSign.position.set(0, 3.5, -19.9);
+    scene.add(exitSign);
+
+    const snackColors = [0x7a1a1a, 0x1a1a5a, 0x1a4a1a, 0x5a3a1a, 0x3a1a5a];
+    for (let row = 0; row < 4; row++) {
+      let x = 5;
+      while (x < 28) {
+        const colorIdx = Math.floor(Math.random() * snackColors.length);
+        const snackGeometry = new THREE.BoxGeometry(0.18, 0.22, 0.12);
+        const snackMaterial = new THREE.MeshBasicMaterial({ color: snackColors[colorIdx] });
+        const snack = new THREE.Mesh(snackGeometry, snackMaterial);
+        snack.position.set(x, 0.3 + row * 0.3, -19.8);
+        const randomRotation = (Math.random() - 0.5) * (Math.PI / 36);
+        snack.rotation.z = randomRotation;
+        scene.add(snack);
+        x += 0.22;
+      }
+    }
+
+    const snackSignCanvas = document.createElement('canvas');
+    snackSignCanvas.width = 256;
+    snackSignCanvas.height = 256;
+    const snackCtx = snackSignCanvas.getContext('2d');
+    snackCtx.fillStyle = '#003087';
+    snackCtx.fillRect(0, 0, 256, 256);
+    snackCtx.fillStyle = '#FFD600';
+    snackCtx.font = 'bold 50px Arial';
+    snackCtx.textAlign = 'center';
+    snackCtx.textBaseline = 'middle';
+    snackCtx.fillText('SNACKS', 128, 128);
+    const snackSignTexture = new THREE.CanvasTexture(snackSignCanvas);
+    const snackSignGeometry = new THREE.PlaneGeometry(1.5, 0.6);
+    const snackSignMaterial = new THREE.MeshBasicMaterial({ map: snackSignTexture });
+    const snackSign = new THREE.Mesh(snackSignGeometry, snackSignMaterial);
+    snackSign.position.set(16.5, 3.5, -19.9);
+    scene.add(snackSign);
+
+    const instancedMeshList = [];
+
+    function createShelves() {
+      const unitXPositions = [-18, -14.4, -10.8, -7.2, -3.6, 0, 3.6, 7.2, 10.8, 14.4, 18];
+      const backingPanelGeo = new THREE.BoxGeometry(0.15, 1.8, 32);
+      const backingPanelMat = new THREE.MeshBasicMaterial({ color: 0x003087 });
+      const shelfBoardGeo = new THREE.BoxGeometry(0.4, 0.05, 32);
+      const shelfBoardMat = new THREE.MeshBasicMaterial({ color: 0x8B5E3C });
+      const shelfLevels = [0.3, 0.9, 1.5];
+
+      unitXPositions.forEach(unitX => {
+        const backingPanel = new THREE.Mesh(backingPanelGeo, backingPanelMat);
+        backingPanel.position.set(unitX, 0.9, 2);
+        scene.add(backingPanel);
+
+        shelfLevels.forEach(shelfY => {
+          const shelfBoard = new THREE.Mesh(shelfBoardGeo, shelfBoardMat);
+          shelfBoard.position.set(unitX, shelfY, 2);
+          scene.add(shelfBoard);
+        });
+      });
+    }
+
+    function placeCases() {
+      const caseW = 0.342, caseH = 0.495, caseD = 0.045;
+      const shelfLevels = [0.3, 0.9, 1.5];
+      const zStart = -13, zEnd = 17, zStep = 0.42;
+
+      const shelfUnits = [
+        { x: -18, faces: [{ genre: 'Horror', side: 'right' }] },
+        { x: -14.4, faces: [{ genre: 'Horror', side: 'left' }, { genre: 'Drama', side: 'right' }] },
+        { x: -10.8, faces: [{ genre: 'Drama', side: 'left' }, { genre: 'Action', side: 'right' }] },
+        { x: -7.2, faces: [{ genre: 'Action', side: 'left' }, { genre: 'Thriller', side: 'right' }] },
+        { x: -3.6, faces: [{ genre: 'Thriller', side: 'left' }, { genre: 'Sci-Fi', side: 'right' }] },
+        { x: 0, faces: [{ genre: 'Sci-Fi', side: 'left' }, { genre: 'Comedy', side: 'right' }] },
+        { x: 3.6, faces: [{ genre: 'Comedy', side: 'left' }, { genre: 'Animation', side: 'right' }] },
+        { x: 7.2, faces: [{ genre: 'Animation', side: 'left' }, { genre: 'Crime', side: 'right' }] },
+        { x: 10.8, faces: [{ genre: 'Crime', side: 'left' }, { genre: 'Adventure', side: 'right' }] },
+        { x: 14.4, faces: [{ genre: 'Adventure', side: 'left' }, { genre: 'Fantasy', side: 'right' }] },
+        { x: 18, faces: [{ genre: 'Fantasy', side: 'left' }] }
+      ];
+
+      for (const unit of shelfUnits) {
+        for (const face of unit.faces) {
+          const genreMovies = moviesByGenre[face.genre] || [];
+          let movieIndex = 0;
+          let exhausted = false;
+
+          for (const shelfY of shelfLevels) {
+            if (exhausted) break;
+            for (let z = zStart; z <= zEnd; z += zStep) {
+              if (movieIndex >= genreMovies.length) {
+                exhausted = true;
+                break;
+              }
+
+              const movie = genreMovies[movieIndex];
+              movieIndex++;
+
+              const baseColor = genreBaseColors[face.genre];
+              const brightness = 0.8 + Math.random() * 0.4;
+              const r = ((baseColor >> 16) & 255) / 255 * brightness;
+              const g = ((baseColor >> 8) & 255) / 255 * brightness;
+              const b = (baseColor & 255) / 255 * brightness;
+              const solidColor = new THREE.Color(r, g, b);
+
+              const solidMat = new THREE.MeshBasicMaterial({ color: solidColor });
+              const posterMat = new THREE.MeshBasicMaterial({ color: solidColor });
+              const materials = [solidMat, solidMat, solidMat, solidMat, posterMat, solidMat];
+
+              const mesh = new THREE.Mesh(new THREE.BoxGeometry(caseW, caseH, caseD), materials);
+              mesh.position.set(
+                unit.x + (face.side === 'right' ? 0.08 : -0.08),
+                shelfY + 0.248,
+                z
+              );
+              mesh.rotation.y = face.side === 'right' ? -Math.PI / 2 : Math.PI / 2;
+              mesh.userData.film = movie;
+              mesh.userData.genre = face.genre;
+              mesh.userData.faceIndex = 4;
+              scene.add(mesh);
+              instancedMeshList.push(mesh);
+            }
+          }
+        }
+      }
+    }
+    createShelves();
+
+    loadMovieCSV().then(() => {
+      placeCases();
+      let textureCount = 0;
+      for (const mesh of instancedMeshList) {
+        if(mesh.userData.film && mesh.userData.film.uid) {
+          loadTexture(mesh.userData.film.uid, mesh);
+          textureCount++;
+        }
+      }
+      console.log(`Loading ${textureCount} poster textures`);
+    }).catch(error => {
+      console.error('Failed to load movies, using fallback:', error);
+      placeCases();
+      let textureCount = 0;
+      for (const mesh of instancedMeshList) {
+        if(mesh.userData.film && mesh.userData.film.uid) {
+          loadTexture(mesh.userData.film.uid, mesh);
+          textureCount++;
+        }
+      }
+      console.log(`Loading ${textureCount} poster textures`);
+    });
+
+    for (let i = 0; i < genres.length; i++) {
+      const aisleCenterX = aislePositionsX[i];
+      const genre = genres[i];
+
+      const signCanvas = document.createElement('canvas');
+      signCanvas.width = 256;
+      signCanvas.height = 256;
+      const signCtx = signCanvas.getContext('2d');
+      signCtx.fillStyle = '#003087';
+      signCtx.fillRect(0, 0, 256, 256);
+      signCtx.fillStyle = '#FFD600';
+      signCtx.font = 'bold 60px Arial';
+      signCtx.textAlign = 'center';
+      signCtx.textBaseline = 'middle';
+      signCtx.fillText(genre, 128, 128);
+
+      const signTexture = new THREE.CanvasTexture(signCanvas);
+      const cubeGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+      const navyMaterial = new THREE.MeshBasicMaterial({ color: 0x003087 });
+      const textMaterial = new THREE.MeshBasicMaterial({ map: signTexture });
+      const cubeMaterials = [
+        textMaterial,
+        textMaterial,
+        navyMaterial,
+        navyMaterial,
+        textMaterial,
+        textMaterial
+      ];
+      const signCube = new THREE.Mesh(cubeGeometry, cubeMaterials);
+      signCube.position.set(aisleCenterX, 3.2, 0);
+      scene.add(signCube);
+
+      const pointLight = new THREE.PointLight(genreLightColors[genre], 0.3, 8);
+      pointLight.position.set(aisleCenterX, 3.2, 0);
+      pointLight.decay = 2;
+      pointLight.castShadow = true;
+      scene.add(pointLight);
+    }
+
+    const keys = {};
+    const playerVelocity = new THREE.Vector3();
+    const walkSpeed = 0.032;
+    const mouseSensitivity = 0.001;
+    let pitch = 0;
+    let yaw = 0;
+
+    document.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key === ' ') renderer.domElement.requestPointerLock();
+    });
+    document.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+    });
+
+    document.addEventListener('click', () => {
+      renderer.domElement.requestPointerLock();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement === renderer.domElement) {
+        yaw -= e.movementX * mouseSensitivity;
+        pitch -= e.movementY * mouseSensitivity;
+        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+      }
+    });
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2(0, 0);
+    const genreLabel = document.getElementById('genreLabel');
+    const dvdOverlay = document.getElementById('dvdOverlay');
+    let hoveredGenre = null;
+
+    document.addEventListener('mousemove', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    document.addEventListener('click', (e) => {
+      if (document.pointerLockElement !== renderer.domElement) {
+        raycaster.setFromCamera(mouse, camera);
+        const doorIntersects = raycaster.intersectObjects([leftDoor, rightDoor], true);
+        if (doorIntersects.length > 0) {
+          window.location.href = 'index.html';
+          return;
+        }
+      } else if (document.pointerLockElement === renderer.domElement) {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(instancedMeshList);
+        if (intersects.length > 0) {
+          const film = intersects[0].object.userData.film;
+          if (film) {
+            const posterHtml = film.uid ? `<img src="https://wonderdk.github.io/bekindrewind/posters/${film.uid}.jpg" alt="Poster" style="width: 150px; height: 220px; margin-bottom: 20px; object-fit: cover;">` : '';
+            const genreNames = film.genre_ids ? film.genre_ids.split('|').map(g => g.trim()).join(', ') : 'Unknown';
+            document.getElementById('dvdInfo').innerHTML = `
+              ${posterHtml}
+              <div style="font-size: 18px; margin-bottom: 10px; font-weight: bold;">${film.title || 'Unknown'}</div>
+              <div style="margin-bottom: 8px; font-size: 12px; color: #cccccc;">Year: ${film.year || 'N/A'}</div>
+              <div style="margin-bottom: 8px; font-size: 12px; color: #cccccc;">Format: ${film.format || 'N/A'}</div>
+              <div style="margin-bottom: 8px; font-size: 12px; color: #cccccc;">Director: ${film.director || 'N/A'}</div>
+              <div style="margin-bottom: 8px; font-size: 12px; color: #cccccc;">Runtime: ${film.runtime || 'N/A'}</div>
+              <div style="margin-bottom: 8px; font-size: 12px; color: #cccccc;">Genres: ${genreNames}</div>
+              <div style="margin-bottom: 8px; font-size: 12px; color: #FFD600;">Watched: ${film.watched === 'true' ? 'Yes' : 'No'}</div>
+              <div style="margin-top: 15px; font-size: 12px; color: #cccccc;">[Click outside to close]</div>
+            `;
+          } else {
+            const genre = intersects[0].object.userData.genre;
+            document.getElementById('dvdInfo').innerHTML = `
+              <div style="font-size: 20px; margin-bottom: 20px;">${genre}</div>
+              <div style="margin-bottom: 20px; font-size: 14px; color: #cccccc;">[Click outside to close]</div>
+            `;
+          }
+          dvdOverlay.style.display = 'block';
+        }
+      }
+    });
+
+    dvdOverlay.addEventListener('click', () => {
+      dvdOverlay.style.display = 'none';
+    });
+
+    document.addEventListener('contextmenu', (e) => {
+      if (dvdOverlay.style.display === 'block') {
+        e.preventDefault();
+        dvdOverlay.style.display = 'none';
+      }
+    });
+
+    document.getElementById('backButton').addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+      const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+
+      playerVelocity.set(0, 0, 0);
+      if (keys['w']) playerVelocity.add(forward.multiplyScalar(walkSpeed));
+      if (keys['s']) playerVelocity.add(forward.multiplyScalar(-walkSpeed));
+      if (keys['a']) playerVelocity.add(right.multiplyScalar(-walkSpeed));
+      if (keys['d']) playerVelocity.add(right.multiplyScalar(walkSpeed));
+
+      let newX = camera.position.x + playerVelocity.x;
+      let newZ = camera.position.z + playerVelocity.z;
+      const playerRadius = 0.4;
+
+      let collideX = false;
+      let collideZ = false;
+      for (const box of collisionBoxes) {
+        if (newX + playerRadius > box.x - box.w / 2 && newX - playerRadius < box.x + box.w / 2 &&
+            camera.position.z + playerRadius > box.z - box.d / 2 && camera.position.z - playerRadius < box.z + box.d / 2) {
+          collideX = true;
+        }
+        if (camera.position.x + playerRadius > box.x - box.w / 2 && camera.position.x - playerRadius < box.x + box.w / 2 &&
+            newZ + playerRadius > box.z - box.d / 2 && newZ - playerRadius < box.z + box.d / 2) {
+          collideZ = true;
+        }
+      }
+
+      if (!collideX && newX > -19.6 && newX < 19.6) camera.position.x = newX;
+      if (!collideZ && newZ > -19.6 && newZ < 19.6) camera.position.z = newZ;
+
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+
+      if (playerVelocity.length() > 0) {
+        const bobAmount = Math.sin(Date.now() * 0.005) * 0.01;
+        camera.position.y = 1.7 + bobAmount;
+      } else {
+        camera.position.y = 1.7;
+      }
+
+      let closestAisle = -1;
+      let closestDist = Infinity;
+      for (let i = 0; i < aislePositionsX.length; i++) {
+        const dist = Math.abs(camera.position.x - aislePositionsX[i]);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestAisle = i;
+        }
+      }
+      const aisle = closestDist < 4 ? closestAisle : -1;
+
+      if (aisle !== -1) {
+        const currentGenre = genres[aisle];
+        if (hoveredGenre !== currentGenre) {
+          hoveredGenre = currentGenre;
+        }
+      }
+
+      raycaster.setFromCamera({x: 0, y: 0}, camera);
+      const allMeshes = [];
+      scene.traverse(obj => { if(obj.isMesh) allMeshes.push(obj); });
+      const intersects = raycaster.intersectObjects(allMeshes, false);
+
+      const hoverPanel = document.getElementById('hoverPanel');
+      if(intersects.length > 0) {
+        const hit = intersects[0].object;
+        if(hit.userData && hit.userData.film) {
+          const film = hit.userData.film;
+          document.getElementById('hoverPoster').src = `https://wonderdk.github.io/bekindrewind/posters/${film.uid}.jpg`;
+          document.getElementById('hoverTitle').textContent = film.title;
+          hoverPanel.style.display = 'block';
+        } else {
+          hoverPanel.style.display = 'none';
+        }
+      } else {
+        hoverPanel.style.display = 'none';
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+  </script>
+</body>
+</html>
