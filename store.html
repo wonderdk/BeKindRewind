@@ -688,8 +688,11 @@
 
     const keys = {};
     const playerVelocity = new THREE.Vector3();
-    const walkSpeed = 0.055;
-    const mouseSensitivity = 0.001;
+    const targetVelocity = new THREE.Vector3();
+    const acceleration = 0.08;
+    const friction = 0.85;
+    const maxSpeed = 0.055;
+    const mouseSensitivity = 0.0007;
     let pitch = 0;
     let yaw = 0;
 
@@ -784,11 +787,17 @@
       const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
       const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
 
-      playerVelocity.set(0, 0, 0);
-      if (keys['w']) playerVelocity.add(forward.multiplyScalar(walkSpeed));
-      if (keys['s']) playerVelocity.add(forward.multiplyScalar(-walkSpeed));
-      if (keys['a']) playerVelocity.add(right.multiplyScalar(-walkSpeed));
-      if (keys['d']) playerVelocity.add(right.multiplyScalar(walkSpeed));
+      targetVelocity.set(0, 0, 0);
+      if (keys['w']) targetVelocity.add(forward.clone().multiplyScalar(maxSpeed));
+      if (keys['s']) targetVelocity.add(forward.clone().multiplyScalar(-maxSpeed));
+      if (keys['a']) targetVelocity.add(right.clone().multiplyScalar(-maxSpeed));
+      if (keys['d']) targetVelocity.add(right.clone().multiplyScalar(maxSpeed));
+
+      playerVelocity.lerp(targetVelocity, acceleration);
+
+      if (targetVelocity.length() === 0) {
+        playerVelocity.multiplyScalar(friction);
+      }
 
       let newX = camera.position.x + playerVelocity.x;
       let newZ = camera.position.z + playerVelocity.z;
