@@ -152,6 +152,8 @@
       'Comedy': 0xffff99
     };
 
+    const collisionBoxes = [];
+
     const floorGeometry = new THREE.PlaneGeometry(60, 40);
     const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8 });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -247,7 +249,6 @@
     const backingColor = 0x003087;
     let totalDVDCases = 0;
     const dvdCases = [];
-    const collisionBoxes = [];
 
     const zStart = -18;
     const zEnd = 18;
