@@ -244,13 +244,16 @@
     }
 
     function loadTexture(uid, mesh) {
-      if(textureCache.has(uid)) {
+      if (!uid) return;
+      if (textureCache.has(uid)) {
         const cached = textureCache.get(uid);
-        if(cached === null) return;
-        mesh.material[4] = new THREE.MeshBasicMaterial({ map: cached });
-        mesh.material[4].needsUpdate = true;
+        if (cached) {
+          mesh.material[4] = new THREE.MeshBasicMaterial({ map: cached });
+          mesh.material[4].needsUpdate = true;
+        }
         return;
       }
+      // Mark as in-flight so duplicate requests don't fire
       textureCache.set(uid, null);
       const loader = new THREE.TextureLoader();
       loader.load(
@@ -261,7 +264,7 @@
           mesh.material[4].needsUpdate = true;
         },
         undefined,
-        () => { /* keep fallback color on error */ }
+        () => { /* 404 or error — leave solid color, don't retry */ }
       );
     }
 
@@ -611,6 +614,7 @@
 
     loadMovieCSV().then(() => {
       placeCases();
+      console.log('Cases created:', instancedMeshList.length);
       let textureCount = 0;
       for (const mesh of instancedMeshList) {
         if(mesh.userData.film && mesh.userData.film.uid) {
@@ -620,16 +624,7 @@
       }
       console.log(`Loading ${textureCount} poster textures`);
     }).catch(error => {
-      console.error('Failed to load movies, using fallback:', error);
-      placeCases();
-      let textureCount = 0;
-      for (const mesh of instancedMeshList) {
-        if(mesh.userData.film && mesh.userData.film.uid) {
-          loadTexture(mesh.userData.film.uid, mesh);
-          textureCount++;
-        }
-      }
-      console.log(`Loading ${textureCount} poster textures`);
+      console.error('Failed to load movies:', error);
     });
 
     for (let i = 0; i < genres.length; i++) {
@@ -673,7 +668,7 @@
 
     const keys = {};
     const playerVelocity = new THREE.Vector3();
-    const walkSpeed = 0.032;
+    const walkSpeed = 0.055;
     const mouseSensitivity = 0.001;
     let pitch = 0;
     let yaw = 0;
