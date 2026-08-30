@@ -42,7 +42,8 @@
   .fmt-badge{position:absolute;top:6px;right:6px;font-size:9px;font-weight:700;padding:2px 5px;border-radius:2px;z-index:3;letter-spacing:.04em}
   .fmt-DVD{background:#8B0000;color:#ffaaaa}
   .fmt-Blu-ray{background:#003087;color:#7aaeff;border:1px solid #0044cc}
-  .fmt-4K{background:#111;color:#FFD600;border:1px solid #FFD600}
+  .fmt-4K,.fmt-4KUltraHD{background:#111;color:#FFD600;border:1px solid #FFD600}
+  .fmt-VHS{background:#2a2a2a;color:#ff8c42;border:1px solid #ff8c42}
   .watched-dot{position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:50%;z-index:4;cursor:pointer;}
   .w-yes{background:#4CAF50;}
   .w-no{background:#556080;border:1px solid #7a8aaa;}
@@ -209,6 +210,7 @@
         <option value="DVD">DVD</option>
         <option value="Blu-ray">Blu-ray</option>
        <option value="4K Ultra HD">4K UHD</option>
+        <option value="VHS">VHS</option>
       </select>
       <select id="genre-select" class="toolbar-select" onchange="setGenre(this.value)">
         <option value="all">All genres</option>
@@ -253,6 +255,9 @@ const GITHUB_API = 'https://api.github.com/repos/wonderdk/bekindrewind/contents/
 let GH_TOKEN = localStorage.getItem('gh_token') || '';
 const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxZTY3N2ZiMTVjMGM4ZDBkNTMzNjQzMGYxNmNlOTFmMiIsIm5iZiI6MTc3NjQxMjk3Mi4zMDIsInN1YiI6IjY5ZTFlOTJjNmJlM2VmOWRmZThiN2I1MCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.LmxBN4pTZr1OsghaHWA2LkbrqJrGNqftKmyQ1ZUNOQA';
 let movies = [];
+// csvFields is refreshed from the actual CSV header on load, so columns that
+// exist in the file (e.g. "hidden") are preserved on write instead of dropped.
+let csvFields = ['uid','title','year','format','barcode','imdb_id','runtime','director','watched','poster_url','box_set','genre_ids'];
 let filter = 'all';
 let genre = 'all';
 let unwatched = false;
@@ -262,8 +267,41 @@ let sort = 'title-asc';
 
 function promptToken() {
   const t = prompt('Enter your GitHub Personal Access Token:');
-  if (t) { GH_TOKEN = t; localStorage.setItem('gh_token', t); }
-  return !!t;
+  if (t) { GH_TOKEN = t.trim(); localStorage.setItem('gh_token', GH_TOKEN); }
+  return !!GH_TOKEN;
+}
+
+function buildCsv(list) {
+  const header = csvFields.map(f => `"${f}"`).join(',');
+  const rows = list.map(m =>
+    csvFields.map(f => `"${String(m[f] || '').replace(/"/g,'""')}"`).join(',')
+  );
+  return [header, ...rows].join('\n');
+}
+
+// Writes the CSV back to GitHub. Throws with a readable message on ANY failure
+// (bad token, missing permission, stale sha) instead of failing silently.
+async function githubWrite(csv, message) {
+  const meta = await fetch(GITHUB_API, {
+    headers: { Authorization: `token ${GH_TOKEN}` },
+    cache: 'no-store'
+  });
+  if (meta.status === 401 || meta.status === 403) {
+    GH_TOKEN = '';
+    localStorage.removeItem('gh_token');
+    throw new Error(`GitHub rejected the token (HTTP ${meta.status}). The saved token was cleared; you will be asked for a new one on the next save. Check that the token has "Contents: Read and write" permission on the repo.`);
+  }
+  if (!meta.ok) throw new Error(`Could not read movies.csv metadata (HTTP ${meta.status}).`);
+  const { sha } = await meta.json();
+  const res = await fetch(GITHUB_API, {
+    method: 'PUT',
+    headers: { Authorization: `token ${GH_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(csv))), sha })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`GitHub write failed (HTTP ${res.status})${err.message ? ': ' + err.message : ''}.`);
+  }
 }
 
 async function toggleWatched(uid) {
@@ -274,42 +312,21 @@ async function toggleWatched(uid) {
   renderGrid();
   renderTonight();
   try {
-    const meta = await fetch(GITHUB_API, {
-      headers: { Authorization: `token ${GH_TOKEN}` }
-    });
-    const metaJson = await meta.json();
-    const sha = metaJson.sha;
-    const fields = ['uid','title','year','format','barcode','imdb_id','runtime','director','watched','poster_url','box_set','genre_ids'];
-    const header = fields.map(f => `"${f}"`).join(',');
-    const rows = movies.map(m =>
-      fields.map(f => `"${(m[f]||'').replace(/"/g,'""')}"`).join(',')
-    );
-    const csv = [header, ...rows].join('\n');
-    const encoded = btoa(unescape(encodeURIComponent(csv)));
-    await fetch(GITHUB_API, {
-      method: 'PUT',
-      headers: {
-        Authorization: `token ${GH_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message: `Toggle watched: ${m.title}`,
-        content: encoded,
-        sha: sha
-      })
-    });
+    await githubWrite(buildCsv(movies), `Toggle watched: ${m.title}`);
   } catch(e) {
     console.error('Write failed:', e);
     m.watched = m.watched === 'true' ? 'false' : 'true';
     renderGrid();
+    renderTonight();
+    alert('Could not save to GitHub.\n\n' + e.message);
   }
 }
-
 
 function parseCSV(text) {
   const rows = [];
   const lines = text.trim().split('\n');
   const headers = lines[0].replace(/"/g, '').split(',').map(h => h.trim());
+  if (headers.length > 1) csvFields = headers;
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     const vals = [];
@@ -317,7 +334,10 @@ function parseCSV(text) {
     let inQ = false;
     for (let j = 0; j < line.length; j++) {
       const c = line[j];
-      if (c === '"') { inQ = !inQ; continue; }
+      if (c === '"') {
+        if (inQ && line[j+1] === '"') { cur += '"'; j++; continue; }
+        inQ = !inQ; continue;
+      }
       if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
       cur += c;
     }
@@ -348,8 +368,8 @@ async function loadMovies() {
   }
 }
 
-function fmtClass(f) { return 'fmt-' + f.replace(' ',''); }
-function fmtLabel(f) { return f === 'Blu-ray' ? 'BD' : f; }
+function fmtClass(f) { return 'fmt-' + String(f || '').replace(/\s+/g,''); }
+function fmtLabel(f) { return f === 'Blu-ray' ? 'BD' : (f === '4K Ultra HD' ? '4K' : f); }
 
 function getFiltered() {
   const q = document.getElementById('search').value.toLowerCase();
@@ -617,9 +637,10 @@ async function searchFilmTMDB() {
           <div class="modal-result-meta">${r.release_date?.slice(0,4) || '—'} · <span id="dir-${r.id}">…</span></div>
         </div>
         <select class="modal-fmt-select" id="fmt-${r.id}">
-          <option value="DVD">DVD</option>
-          <option value="Blu-ray" selected>Blu-ray</option>
+          <option value="DVD" selected>DVD</option>
+          <option value="Blu-ray">Blu-ray</option>
           <option value="4K Ultra HD">4K Ultra HD</option>
+          <option value="VHS">VHS</option>
         </select>
         <button class="modal-add-btn" onclick="addFilm(${r.id})">Add</button>
       </div>`).join('');
@@ -639,7 +660,7 @@ async function searchFilmTMDB() {
 async function addFilm(tmdbId) {
   if (!GH_TOKEN && !promptToken()) return;
   const btn = document.querySelector(`#mr-${tmdbId} .modal-add-btn`);
-  const fmt = document.getElementById(`fmt-${tmdbId}`)?.value || 'Blu-ray';
+  const fmt = document.getElementById(`fmt-${tmdbId}`)?.value || 'DVD';
   if (btn) { btn.textContent = 'Adding…'; btn.disabled = true; }
   try {
     const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
@@ -656,19 +677,7 @@ async function addFilm(tmdbId) {
       barcode: '', imdb_id: imdbId, runtime, director,
       watched: 'false', poster_url: posterUrl, box_set: '', genre_ids: genreIds
     };
-    const meta = await fetch(GITHUB_API, { headers: { Authorization: `token ${GH_TOKEN}` } }).then(r => r.json());
-    const sha = meta.sha;
-    const fields = ['uid','title','year','format','barcode','imdb_id','runtime','director','watched','poster_url','box_set','genre_ids'];
-    const header = fields.map(f => `"${f}"`).join(',');
-    const allMovies = [...movies, newMovie];
-    const rows = allMovies.map(m => fields.map(f => `"${(m[f]||'').replace(/"/g,'""')}"`).join(','));
-    const csv = [header, ...rows].join('\n');
-    const encoded = btoa(unescape(encodeURIComponent(csv)));
-    await fetch(GITHUB_API, {
-      method: 'PUT',
-      headers: { Authorization: `token ${GH_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: `Add: ${newMovie.title}`, content: encoded, sha })
-    });
+    await githubWrite(buildCsv([...movies, newMovie]), `Add: ${newMovie.title}`);
     movies.push(newMovie);
     document.getElementById('total').textContent = movies.length;
     renderGrid();
@@ -677,7 +686,8 @@ async function addFilm(tmdbId) {
     showAddToast(`"${newMovie.title}" added to collection`);
   } catch(e) {
     console.error('Add film failed:', e);
-    if (btn) { btn.textContent = 'Failed'; btn.disabled = false; }
+    if (btn) { btn.textContent = 'Add'; btn.disabled = false; }
+    alert('Could not add the film.\n\n' + e.message);
   }
 }
 
