@@ -162,6 +162,17 @@
 .modal-add-btn:hover{background:#ffe033}
 .modal-add-btn:disabled{opacity:.45;cursor:default}
 .modal-status{color:#9BA3C4;font-size:13px;padding:32px 20px;text-align:center}
+.modal-footer{border-top:1px solid #2a3460;padding:12px 20px;flex-shrink:0;display:none;flex-direction:column;gap:10px}
+.queue-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:96px;overflow-y:auto}
+.queue-chip{display:inline-flex;align-items:center;gap:6px;background:#1a2240;border:1px solid #2a3460;color:#e8ecf8;font-size:11px;padding:3px 8px;border-radius:12px}
+.queue-chip-fmt{color:#556080;font-size:9px}
+.queue-chip-x{background:transparent;border:none;color:#556080;cursor:pointer;font-size:13px;line-height:1;padding:0}
+.queue-chip-x:hover{color:#ff8080}
+.modal-footer-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.queue-count{color:#9BA3C4;font-size:12px}
+.modal-save-btn{background:#FFD600;color:#003087;border:none;font-size:12px;font-weight:700;padding:8px 18px;border-radius:4px;cursor:pointer;letter-spacing:.04em}
+.modal-save-btn:hover{background:#ffe033}
+.modal-save-btn:disabled{opacity:.45;cursor:default}
 .add-toast{position:fixed;top:68px;left:50%;transform:translateX(-50%);background:#0a2a10;border:1px solid #4CAF50;color:#6ed47a;font-size:12px;font-weight:500;padding:8px 20px;border-radius:4px;z-index:300;pointer-events:none;white-space:nowrap;transition:opacity .4s;display:none}
 .add-toast.fade-out{opacity:0}
 @media(max-width:600px){
@@ -197,6 +208,13 @@
       <button class="modal-search-btn" onclick="searchFilmTMDB()">Search</button>
     </div>
     <div id="modal-results" class="modal-results"></div>
+    <div id="modal-footer" class="modal-footer">
+      <div id="queue-chips" class="queue-chips"></div>
+      <div class="modal-footer-row">
+        <span class="queue-count" id="queue-count"></span>
+        <button class="modal-save-btn" id="modal-save-btn" onclick="commitAdds()">Save to collection</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="add-toast" class="add-toast"></div>
@@ -264,6 +282,7 @@ let unwatched = false;
 let tonight = new Set(JSON.parse(localStorage.getItem('tonight') || '[]'));
 let currentView = 'collection';
 let sort = 'title-asc';
+let pendingAdds = [];
 
 function promptToken() {
   const t = prompt('Enter your GitHub Personal Access Token:');
@@ -610,6 +629,7 @@ function openAddModal() {
   m.style.display = 'flex';
   document.getElementById('modal-results').innerHTML = '';
   document.getElementById('modal-query').value = '';
+  renderQueue();
   setTimeout(() => document.getElementById('modal-query').focus(), 50);
 }
 
@@ -642,7 +662,7 @@ async function searchFilmTMDB() {
           <option value="4K Ultra HD">4K Ultra HD</option>
           <option value="VHS">VHS</option>
         </select>
-        <button class="modal-add-btn" onclick="addFilm(${r.id})">Add</button>
+        <button class="modal-add-btn" onclick="queueFilm(${r.id})">${pendingAdds.some(p => p.tmdbId === r.id) ? 'Added ✓' : 'Add'}</button>
       </div>`).join('');
     results.forEach(async r => {
       try {
@@ -657,37 +677,99 @@ async function searchFilmTMDB() {
   }
 }
 
-async function addFilm(tmdbId) {
-  if (!GH_TOKEN && !promptToken()) return;
+// Queue a film locally (fetches TMDB details now, writes to GitHub only on Save)
+async function queueFilm(tmdbId) {
+  if (pendingAdds.some(p => p.tmdbId === tmdbId)) { unqueueFilm(tmdbId); return; }
   const btn = document.querySelector(`#mr-${tmdbId} .modal-add-btn`);
   const fmt = document.getElementById(`fmt-${tmdbId}`)?.value || 'DVD';
-  if (btn) { btn.textContent = 'Adding…'; btn.disabled = true; }
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
   try {
     const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
     const d = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=credits,external_ids`, { headers: hdrs }).then(r => r.json());
     const imdbId = d.external_ids?.imdb_id || '';
-    const runtime = String(d.runtime || '');
-    const director = d.credits?.crew?.find(c => c.job === 'Director')?.name || '';
-    const posterUrl = d.poster_path ? `https://image.tmdb.org/t/p/w300${d.poster_path}` : '';
-    const year = d.release_date?.slice(0, 4) || '';
-    const genreIds = (d.genres || []).map(g => g.name).join('|');
-    const maxUid = movies.reduce((max, m) => Math.max(max, parseInt(m.uid) || 0), 0);
-    const newMovie = {
-      uid: String(maxUid + 1), title: d.title || '', year, format: fmt,
-      barcode: '', imdb_id: imdbId, runtime, director,
-      watched: 'false', poster_url: posterUrl, box_set: '', genre_ids: genreIds
-    };
-    await githubWrite(buildCsv([...movies, newMovie]), `Add: ${newMovie.title}`);
-    movies.push(newMovie);
+    if (imdbId && movies.some(m => m.imdb_id === imdbId)) {
+      alert(`"${d.title}" is already in the collection.`);
+      if (btn) { btn.textContent = 'Add'; btn.disabled = false; }
+      return;
+    }
+    pendingAdds.push({
+      tmdbId,
+      title: d.title || '',
+      year: d.release_date?.slice(0, 4) || '',
+      format: fmt,
+      barcode: '',
+      imdb_id: imdbId,
+      runtime: String(d.runtime || ''),
+      director: d.credits?.crew?.find(c => c.job === 'Director')?.name || '',
+      watched: 'false',
+      poster_url: d.poster_path ? `https://image.tmdb.org/t/p/w300${d.poster_path}` : '',
+      box_set: '',
+      genre_ids: (d.genres || []).map(g => g.name).join('|')
+    });
+    if (btn) { btn.textContent = 'Added ✓'; btn.disabled = false; }
+    renderQueue();
+  } catch(e) {
+    console.error('Queue film failed:', e);
+    if (btn) { btn.textContent = 'Add'; btn.disabled = false; }
+    alert('Could not fetch film details.\n\n' + e.message);
+  }
+}
+
+function unqueueFilm(tmdbId) {
+  pendingAdds = pendingAdds.filter(p => p.tmdbId !== tmdbId);
+  const btn = document.querySelector(`#mr-${tmdbId} .modal-add-btn`);
+  if (btn) { btn.textContent = 'Add'; btn.disabled = false; }
+  renderQueue();
+}
+
+function renderQueue() {
+  const footer = document.getElementById('modal-footer');
+  const chips = document.getElementById('queue-chips');
+  const count = document.getElementById('queue-count');
+  if (!footer) return;
+  if (pendingAdds.length === 0) { footer.style.display = 'none'; return; }
+  footer.style.display = 'flex';
+  count.textContent = pendingAdds.length + (pendingAdds.length === 1 ? ' film queued' : ' films queued');
+  chips.innerHTML = pendingAdds.map(p => `
+    <span class="queue-chip">
+      ${escHtml(p.title)} <span class="queue-chip-fmt">${escHtml(fmtLabel(p.format))}</span>
+      <button class="queue-chip-x" onclick="unqueueFilm(${p.tmdbId})" title="Remove">×</button>
+    </span>`).join('');
+}
+
+// One GitHub write, one commit, for everything in the queue
+async function commitAdds() {
+  if (!pendingAdds.length) return;
+  if (!GH_TOKEN && !promptToken()) return;
+  const saveBtn = document.getElementById('modal-save-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  try {
+    let nextUid = movies.reduce((max, m) => Math.max(max, parseInt(m.uid) || 0), 0);
+    const newMovies = pendingAdds.map(p => {
+      const { tmdbId, ...rest } = p;
+      return { uid: String(++nextUid), ...rest };
+    });
+    const message = newMovies.length === 1
+      ? `Add: ${newMovies[0].title}`
+      : `Add ${newMovies.length} films`;
+    await githubWrite(buildCsv([...movies, ...newMovies]), message);
+    movies.push(...newMovies);
     document.getElementById('total').textContent = movies.length;
     renderGrid();
     populateGenres();
+    pendingAdds = [];
+    renderQueue();
     closeAddModal();
-    showAddToast(`"${newMovie.title}" added to collection`);
+    showAddToast(newMovies.length === 1
+      ? `"${newMovies[0].title}" added to collection`
+      : `${newMovies.length} films added to collection`);
   } catch(e) {
-    console.error('Add film failed:', e);
-    if (btn) { btn.textContent = 'Add'; btn.disabled = false; }
-    alert('Could not add the film.\n\n' + e.message);
+    console.error('Save failed:', e);
+    alert('Could not save to GitHub. Your queued films are still in the list.\n\n' + e.message);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save to collection';
   }
 }
 
