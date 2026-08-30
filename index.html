@@ -411,10 +411,11 @@ async function enrichData() {
   const worker = async (m) => {
     try {
       const f = await fetch(`https://api.themoviedb.org/3/find/${m.imdb_id}?external_source=imdb_id`, { headers: hdrs }).then(r => r.json());
-      const id = f.movie_results?.[0]?.id;
+      let id = f.movie_results?.[0]?.id, kind = 'movie';
+      if (!id) { id = f.tv_results?.[0]?.id; kind = 'tv'; }
       if (!id) throw new Error('no TMDB match');
-      const d = await fetch(`https://api.themoviedb.org/3/movie/${id}?language=da-DK&append_to_response=credits`, { headers: hdrs }).then(r => r.json());
-      m.title_da = d.title || '';
+      const d = await fetch(`https://api.themoviedb.org/3/${kind}/${id}?language=da-DK&append_to_response=credits`, { headers: hdrs }).then(r => r.json());
+      m.title_da = d.title || d.name || '';
       m.actors = (d.credits?.cast || []).slice(0, 5).map(c => c.name).join('|') || '-';
     } catch(e) {
       failed++;
@@ -603,19 +604,25 @@ async function openDetail(imdbId) {
   try {
     const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
     const findData = await fetch(`https://api.themoviedb.org/3/find/${imdbId}?external_source=imdb_id`, { headers: hdrs }).then(r => r.json());
-    const tmdbId = findData.movie_results?.[0]?.id;
+    let tmdbId = findData.movie_results?.[0]?.id, kind = 'movie';
+    if (!tmdbId) { tmdbId = findData.tv_results?.[0]?.id; kind = 'tv'; }
     if (!tmdbId) throw new Error('Not found');
-    const d = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=credits,videos,release_dates`, { headers: hdrs }).then(r => r.json());
+    const d = await fetch(`https://api.themoviedb.org/3/${kind}/${tmdbId}?append_to_response=credits,videos,${kind === 'movie' ? 'release_dates' : 'content_ratings'}`, { headers: hdrs }).then(r => r.json());
 
     const backdropUrl = d.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}` : '';
     const posterUrl = d.poster_path ? `https://image.tmdb.org/t/p/w342${d.poster_path}` : (m.poster_url || '');
     const score = d.vote_average ? Math.round(d.vote_average * 10) : null;
-    const director = d.credits?.crew?.find(c => c.job === 'Director')?.name || m.director || '';
+    const director = (kind === 'movie'
+      ? d.credits?.crew?.find(c => c.job === 'Director')?.name
+      : d.created_by?.[0]?.name) || m.director || '';
+    const directorLabel = kind === 'movie' ? 'Director' : 'Created by';
     const cast = (d.credits?.cast || []).slice(0, 8);
     const genres = (d.genres || []).map(g => g.name);
     const trailer = d.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-    const cert = d.release_dates?.results?.find(r => r.iso_3166_1 === 'US')
-      ?.release_dates?.find(r => r.certification)?.certification || '';
+    const cert = kind === 'movie'
+      ? (d.release_dates?.results?.find(r => r.iso_3166_1 === 'US')
+          ?.release_dates?.find(r => r.certification)?.certification || '')
+      : (d.content_ratings?.results?.find(r => r.iso_3166_1 === 'US')?.rating || '');
     const isWatched = m.watched === 'true';
 
     el.innerHTML = `
@@ -630,7 +637,7 @@ async function openDetail(imdbId) {
               ${posterUrl ? `<img src="${posterUrl}" alt="${escHtml(m.title)}">` : '<div class="poster-placeholder"><div class="poster-placeholder-inner"></div></div>'}
             </div>
             <div class="detail-info">
-              <div class="detail-title">${escHtml(d.title || m.title)}</div>
+              <div class="detail-title">${escHtml(d.title || d.name || m.title)}</div>
               <div class="detail-meta">
                 <span>${escHtml(m.year)}</span>
                 ${m.runtime ? `<span>${escHtml(m.runtime)} min</span>` : ''}
@@ -649,7 +656,7 @@ async function openDetail(imdbId) {
             </div>
           </div>
           ${d.overview ? `<div class="detail-section"><div class="detail-section-title">Overview</div><p class="detail-overview">${escHtml(d.overview)}</p></div>` : ''}
-          ${director ? `<div class="detail-section"><div class="detail-section-title">Director</div><p class="detail-director-name">${escHtml(director)}</p></div>` : ''}
+          ${director ? `<div class="detail-section"><div class="detail-section-title">${directorLabel}</div><p class="detail-director-name">${escHtml(director)}</p></div>` : ''}
           ${cast.length ? `<div class="detail-section"><div class="detail-section-title">Cast</div><div class="cast-grid">${cast.map(c => `<div class="cast-card">${c.profile_path ? `<img class="cast-photo" src="https://image.tmdb.org/t/p/w185${c.profile_path}" alt="${escHtml(c.name)}">` : '<div class="cast-no-photo"></div>'}<div class="cast-name">${escHtml(c.name)}</div><div class="cast-char">${escHtml(c.character)}</div></div>`).join('')}</div></div>` : ''}
           ${genres.length ? `<div class="detail-section"><div class="detail-section-title">Genres</div><div class="genre-tags">${genres.map(g => `<span class="genre-tag">${escHtml(g)}</span>`).join('')}</div></div>` : ''}
         </div>
