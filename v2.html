@@ -297,6 +297,70 @@ let locked = false, yaw = 0, pitch = 0;
 const keys = {};
 let touchFwd = 0;
 let staticTex = null, staticCtx = null;
+let crtMat = null, videoEl = null, videoTex = null, trailerIdx = -1, trailerFails = 0, audioUnlocked = false;
+/* Public-domain trailers from the Internet Archive; the CRT falls back to static if they fail.
+   Add more entries here: { mp4, ogv } pairs from archive.org/details/... download links. */
+const TRAILERS = TEST_MODE ? [
+  { mp4: '/t1.webm', ogv: '/t1.webm' },
+  { mp4: '/t2.webm', ogv: '/t2.webm' }
+] : [
+  { mp4: 'https://archive.org/download/NightOfTheLivingDeadTrailer/NightLivingDeadTrailer_512kb.mp4',
+    ogv: 'https://archive.org/download/NightOfTheLivingDeadTrailer/NightLivingDeadTrailer.ogv' },
+  { mp4: 'https://archive.org/download/sinema-trailer_house-on-haunted-hill/Trailer%20-%20House%20On%20Haunted%20Hill%20%281959%29%20%28480p_24fps_H264-128kbit_AAC%29.mp4',
+    ogv: 'https://archive.org/download/sinema-trailer_house-on-haunted-hill/Trailer%20-%20House%20On%20Haunted%20Hill%20%281959%29%20%28480p_24fps_H264-128kbit_AAC%29.ogv' }
+];
+function nextTrailer() {
+  if (!videoEl || trailerFails >= TRAILERS.length) return; // give up -> static stays
+  trailerIdx = (trailerIdx + 1) % TRAILERS.length;
+  if (crtMat) { crtMat.map = staticTex; crtMat.needsUpdate = true; } // channel-flip static between tapes
+  const t = TRAILERS[trailerIdx];
+  videoEl.innerHTML = '';
+  for (const [url, type] of [[t.mp4, 'video/mp4'], [t.ogv, 'video/ogg']]) {
+    if (!url) continue;
+    const src = document.createElement('source');
+    src.src = url; src.type = type;
+    videoEl.appendChild(src);
+  }
+  videoEl.load();
+  const p = videoEl.play();
+  if (p && p.catch) p.catch(() => {});
+}
+function setupCrtVideo() {
+  try {
+    videoEl = document.createElement('video');
+    videoEl.muted = true;
+    videoEl.playsInline = true;
+    videoEl.setAttribute('playsinline', '');
+    videoEl.crossOrigin = 'anonymous';
+    videoEl.preload = 'auto';
+    videoEl.style.cssText = 'position:fixed;width:2px;height:2px;opacity:0.01;pointer-events:none;left:0;top:0;';
+    document.body.appendChild(videoEl);
+    videoEl.addEventListener('playing', () => {
+      trailerFails = 0;
+      if (!videoTex) {
+        videoTex = new THREE.VideoTexture(videoEl);
+        videoTex.minFilter = THREE.LinearFilter;
+      }
+      if (crtMat) { crtMat.map = videoTex; crtMat.needsUpdate = true; }
+    });
+    videoEl.addEventListener('ended', nextTrailer);
+    videoEl.addEventListener('error', () => { trailerFails++; nextTrailer(); });
+    // sources exhausted without a decodable file also lands here via the last <source> erroring
+    nextTrailer();
+  } catch(e) { /* static remains */ }
+}
+function unlockCrtAudio() {
+  if (audioUnlocked || !videoEl) return;
+  audioUnlocked = true;
+  videoEl.muted = false;
+  videoEl.volume = 0;
+}
+function updateCrtVolume() {
+  if (!audioUnlocked || !videoEl) return;
+  const dx = camera.position.x - (-1.3), dz = camera.position.z - 1.35;
+  const d = Math.sqrt(dx*dx + dz*dz);
+  videoEl.volume = Math.max(0, Math.min(1, 1 - d / 3.5)) * 0.45;
+}
 
 function fail(msg) {
   document.getElementById('loading').style.display = 'none';
@@ -400,8 +464,8 @@ function buildRoom() {
   staticCtx = document.createElement('canvas').getContext('2d');
   staticCtx.canvas.width = 64; staticCtx.canvas.height = 48;
   staticTex = new THREE.CanvasTexture(staticCtx.canvas);
-  const crtScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.23),
-    new THREE.MeshBasicMaterial({ map: staticTex }));
+  crtMat = new THREE.MeshBasicMaterial({ map: staticTex });
+  const crtScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.23), crtMat);
   crtScreen.position.set(-1.3, 1.15, 1.148); crtScreen.rotation.y = Math.PI; scene.add(crtScreen);
   const crtGlow = new THREE.PointLight(0x8ec6ff, 0.4, 2.6); crtGlow.position.set(-1.3, 1.2, 0.9); scene.add(crtGlow);
   const note = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.135),
@@ -411,6 +475,7 @@ function buildRoom() {
 
 function updateStatic() {
   if (!staticCtx) return;
+  if (crtMat && crtMat.map !== staticTex) return; // a trailer is on
   const img = staticCtx.createImageData(64, 48);
   for (let i = 0; i < img.data.length; i += 4) {
     const v = Math.random() * 190 + 20;
@@ -556,6 +621,7 @@ function streamTextures() {
 /* ── controls ── */
 function setupControls(canvas) {
   canvas.addEventListener('click', () => {
+    unlockCrtAudio();
     if (document.getElementById('pull-overlay').classList.contains('open')) return;
     if (!locked) { canvas.requestPointerLock?.(); return; }
     if (hovered) openCase(hovered.userData.m);
@@ -594,6 +660,7 @@ function setupControls(canvas) {
   if ('ontouchstart' in window) {
     document.getElementById('touch').style.display = 'flex';
     document.getElementById('hint').textContent = 'Drag to look · hold ▲ to walk · tap a cover to pull it';
+    canvas.addEventListener('touchend', unlockCrtAudio, { passive: true, once: true });
     canvas.addEventListener('touchend', e => {
       if (e.changedTouches.length !== 1) return;
       const t = e.changedTouches[0];
@@ -719,6 +786,7 @@ async function init() {
   buildRoom();
   buildCases();
   setupControls(canvas);
+  setupCrtVideo();
 
   addEventListener('resize', () => {
     camera.aspect = innerWidth/innerHeight;
@@ -738,6 +806,7 @@ async function init() {
     if (frame % 2 === 0) updateHover();
     if (now - lastStream > 420) { streamTextures(); lastStream = now; }
     if (now - lastStatic > 130) { updateStatic(); lastStatic = now; }
+    updateCrtVolume();
     renderer.render(scene, camera);
     frame++;
     requestAnimationFrame(loop);
