@@ -22,8 +22,16 @@
   .stat{color:#9BA3C4;font-size:12px}
   .stat strong{color:#FFD600}
  .toolbar{background:#0f1628;padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-bottom:1px solid #2a3460;position:sticky;top:56px;z-index:90;}
-.search{background:#0f1628;border:1px solid #2a3460;border-radius:4px;padding:7px 12px;color:#fff;font-size:13px;width:100%;outline:none;}
+.search-wrap{position:relative;width:100%;}
+.search{background:#0f1628;border:1px solid #2a3460;border-radius:4px;padding:7px 34px 7px 12px;color:#fff;font-size:13px;width:100%;outline:none;}
 .search::placeholder{color:#556080}
+.search-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#556080;font-size:16px;line-height:1;cursor:pointer;padding:4px 9px;display:none;}
+.search-clear:hover{color:#e8ecf8}
+@media(min-width:700px){
+  .search-wrap{flex:1;width:auto;min-width:220px}
+  .toolbar-right{width:auto;flex-wrap:nowrap}
+  .toolbar-select{flex:0 0 auto;min-width:0}
+}
 .toolbar-right{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%;}
 .toolbar-select{background:#0f1628;border:1px solid #2a3460;color:#9BA3C4;font-size:12px;padding:5px 10px;border-radius:3px;cursor:pointer;outline:none;flex:1;min-width:100px;}
   .unwatched-label{display:flex;align-items:center;gap:5px;color:#9BA3C4;font-size:12px;cursor:pointer;white-space:nowrap;padding:0 4px}
@@ -221,9 +229,11 @@
 
 <div id="view-collection">
   <div class="toolbar">
-    <input class="search" type="text" placeholder="Search titles, directors, actors..." id="search" oninput="renderGrid()">
+    <div class="search-wrap">
+      <input class="search" type="text" placeholder="Search titles, directors, actors..." id="search" oninput="renderGrid();updateSearchClear()">
+      <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear search" aria-label="Clear search">×</button>
+    </div>
     <div class="toolbar-right">
-      <button id="enrich-btn" class="clear-btn" style="display:none" onclick="enrichData()">Fetch Danish titles &amp; cast</button>
       <select id="format-select" class="toolbar-select" onchange="setFormat(this.value)">
         <option value="all">All formats</option>
         <option value="DVD">DVD</option>
@@ -376,14 +386,27 @@ function setSort(val) {
   renderGrid();
 }
 
+function updateSearchClear() {
+  const s = document.getElementById('search');
+  const c = document.getElementById('search-clear');
+  if (s && c) c.style.display = s.value ? 'block' : 'none';
+}
+
+function clearSearch() {
+  const s = document.getElementById('search');
+  if (!s) return;
+  s.value = '';
+  renderGrid();
+  updateSearchClear();
+  s.focus();
+}
+
 async function loadMovies() {
   try {
     const res = await fetch(CSV_URL + '?t=' + Date.now());
     const text = await res.text();
     movies = parseCSV(text);
     document.getElementById('total').textContent = movies.filter(m => m.hidden !== 'true').length;
-    const eb = document.getElementById('enrich-btn');
-    if (eb) eb.style.display = movies.some(needsEnrich) ? 'inline-block' : 'none';
     renderGrid();
     populateGenres();
   } catch(e) {
@@ -393,59 +416,6 @@ async function loadMovies() {
 
 function fmtClass(f) { return 'fmt-' + String(f || '').replace(/\s+/g,''); }
 function fmtLabel(f) { return f === 'Blu-ray' ? 'BD' : (f === '4K Ultra HD' ? '4K' : f); }
-
-function needsEnrich(m) {
-  return /^tt\d{7,8}$/.test(m.imdb_id) && m.imdb_id !== 'tt0000000' && !(m.actors || '').trim();
-}
-
-// Fetches Danish title + top-5 cast from TMDB for every film missing them,
-// then writes the whole CSV back to GitHub in one commit.
-async function enrichData() {
-  if (!GH_TOKEN && !promptToken()) return;
-  const btn = document.getElementById('enrich-btn');
-  const targets = movies.filter(needsEnrich);
-  if (!targets.length) { btn.style.display = 'none'; return; }
-  btn.disabled = true;
-  const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
-  let done = 0, failed = 0;
-  const worker = async (m) => {
-    try {
-      const f = await fetch(`https://api.themoviedb.org/3/find/${m.imdb_id}?external_source=imdb_id`, { headers: hdrs }).then(r => r.json());
-      let id = f.movie_results?.[0]?.id, kind = 'movie';
-      if (!id) { id = f.tv_results?.[0]?.id; kind = 'tv'; }
-      if (!id) throw new Error('no TMDB match');
-      const d = await fetch(`https://api.themoviedb.org/3/${kind}/${id}?language=da-DK&append_to_response=credits`, { headers: hdrs }).then(r => r.json());
-      m.title_da = d.title || d.name || '';
-      m.actors = (d.credits?.cast || []).slice(0, 5).map(c => c.name).join('|') || '-';
-    } catch(e) {
-      failed++;
-    }
-    done++;
-    btn.textContent = `Enriching ${done}/${targets.length}…`;
-  };
-  for (let i = 0; i < targets.length; i += 8) {
-    await Promise.all(targets.slice(i, i + 8).map(worker));
-  }
-  try {
-    await githubWrite(buildCsv(movies), `Add Danish titles and cast (${targets.length - failed} films)`);
-    btn.textContent = failed ? `Done, ${failed} skipped` : 'Done';
-    setTimeout(() => { btn.style.display = 'none'; }, 4000);
-  } catch(e) {
-    console.error('Enrich save failed:', e);
-    btn.textContent = 'Retry save';
-    alert('Data was fetched but could not be saved to GitHub. Click the button again to retry the save only.\n\n' + e.message);
-    btn.onclick = async () => {
-      btn.disabled = true; btn.textContent = 'Saving…';
-      try {
-        await githubWrite(buildCsv(movies), 'Add Danish titles and cast');
-        btn.style.display = 'none';
-      } catch(err) { alert('Save failed again.\n\n' + err.message); btn.textContent = 'Retry save'; }
-      btn.disabled = false;
-    };
-  } finally {
-    btn.disabled = false;
-  }
-}
 
 function getFiltered() {
   const q = document.getElementById('search').value.toLowerCase();
