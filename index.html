@@ -221,8 +221,9 @@
 
 <div id="view-collection">
   <div class="toolbar">
-    <input class="search" type="text" placeholder="Search titles, directors..." id="search" oninput="renderGrid()">
+    <input class="search" type="text" placeholder="Search titles, directors, actors..." id="search" oninput="renderGrid()">
     <div class="toolbar-right">
+      <button id="enrich-btn" class="clear-btn" style="display:none" onclick="enrichData()">Fetch Danish titles &amp; cast</button>
       <select id="format-select" class="toolbar-select" onchange="setFormat(this.value)">
         <option value="all">All formats</option>
         <option value="DVD">DVD</option>
@@ -291,6 +292,7 @@ function promptToken() {
 }
 
 function buildCsv(list) {
+  ['title_da','actors'].forEach(f => { if (!csvFields.includes(f)) csvFields.push(f); });
   const header = csvFields.map(f => `"${f}"`).join(',');
   const rows = list.map(m =>
     csvFields.map(f => `"${String(m[f] || '').replace(/"/g,'""')}"`).join(',')
@@ -380,6 +382,8 @@ async function loadMovies() {
     const text = await res.text();
     movies = parseCSV(text);
     document.getElementById('total').textContent = movies.filter(m => m.hidden !== 'true').length;
+    const eb = document.getElementById('enrich-btn');
+    if (eb) eb.style.display = movies.some(needsEnrich) ? 'inline-block' : 'none';
     renderGrid();
     populateGenres();
   } catch(e) {
@@ -390,13 +394,65 @@ async function loadMovies() {
 function fmtClass(f) { return 'fmt-' + String(f || '').replace(/\s+/g,''); }
 function fmtLabel(f) { return f === 'Blu-ray' ? 'BD' : (f === '4K Ultra HD' ? '4K' : f); }
 
+function needsEnrich(m) {
+  return /^tt\d{7,8}$/.test(m.imdb_id) && m.imdb_id !== 'tt0000000' && !(m.actors || '').trim();
+}
+
+// Fetches Danish title + top-5 cast from TMDB for every film missing them,
+// then writes the whole CSV back to GitHub in one commit.
+async function enrichData() {
+  if (!GH_TOKEN && !promptToken()) return;
+  const btn = document.getElementById('enrich-btn');
+  const targets = movies.filter(needsEnrich);
+  if (!targets.length) { btn.style.display = 'none'; return; }
+  btn.disabled = true;
+  const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
+  let done = 0, failed = 0;
+  const worker = async (m) => {
+    try {
+      const f = await fetch(`https://api.themoviedb.org/3/find/${m.imdb_id}?external_source=imdb_id`, { headers: hdrs }).then(r => r.json());
+      const id = f.movie_results?.[0]?.id;
+      if (!id) throw new Error('no TMDB match');
+      const d = await fetch(`https://api.themoviedb.org/3/movie/${id}?language=da-DK&append_to_response=credits`, { headers: hdrs }).then(r => r.json());
+      m.title_da = d.title || '';
+      m.actors = (d.credits?.cast || []).slice(0, 5).map(c => c.name).join('|') || '-';
+    } catch(e) {
+      failed++;
+    }
+    done++;
+    btn.textContent = `Enriching ${done}/${targets.length}…`;
+  };
+  for (let i = 0; i < targets.length; i += 8) {
+    await Promise.all(targets.slice(i, i + 8).map(worker));
+  }
+  try {
+    await githubWrite(buildCsv(movies), `Add Danish titles and cast (${targets.length - failed} films)`);
+    btn.textContent = failed ? `Done, ${failed} skipped` : 'Done';
+    setTimeout(() => { btn.style.display = 'none'; }, 4000);
+  } catch(e) {
+    console.error('Enrich save failed:', e);
+    btn.textContent = 'Retry save';
+    alert('Data was fetched but could not be saved to GitHub. Click the button again to retry the save only.\n\n' + e.message);
+    btn.onclick = async () => {
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        await githubWrite(buildCsv(movies), 'Add Danish titles and cast');
+        btn.style.display = 'none';
+      } catch(err) { alert('Save failed again.\n\n' + err.message); btn.textContent = 'Retry save'; }
+      btn.disabled = false;
+    };
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function getFiltered() {
   const q = document.getElementById('search').value.toLowerCase();
   let filtered = movies.filter(m => {
     if (unwatched && m.watched === 'true') return false;
     if (m.hidden === 'true') return false;
     if (filter !== 'all' && m.format !== filter) return false;
-    if (q && !m.title.toLowerCase().includes(q) && !m.director.toLowerCase().includes(q)) return false;
+    if (q && !(m.title.toLowerCase().includes(q) || m.director.toLowerCase().includes(q) || (m.title_da || '').toLowerCase().includes(q) || (m.actors || '').toLowerCase().includes(q))) return false;
     if (genre !== 'all' && !m.genre_ids?.split('|').includes(genre)) return false;
     return true;
   });
@@ -685,13 +741,14 @@ async function queueFilm(tmdbId) {
   if (btn) { btn.textContent = '…'; btn.disabled = true; }
   try {
     const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
-    const d = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=credits,external_ids`, { headers: hdrs }).then(r => r.json());
+    const d = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=credits,external_ids,translations`, { headers: hdrs }).then(r => r.json());
     const imdbId = d.external_ids?.imdb_id || '';
     if (imdbId && movies.some(m => m.imdb_id === imdbId)) {
       alert(`"${d.title}" is already in the collection.`);
       if (btn) { btn.textContent = 'Add'; btn.disabled = false; }
       return;
     }
+    const daTitle = d.translations?.translations?.find(t => t.iso_639_1 === 'da')?.data?.title || '';
     pendingAdds.push({
       tmdbId,
       title: d.title || '',
@@ -704,7 +761,9 @@ async function queueFilm(tmdbId) {
       watched: 'false',
       poster_url: d.poster_path ? `https://image.tmdb.org/t/p/w300${d.poster_path}` : '',
       box_set: '',
-      genre_ids: (d.genres || []).map(g => g.name).join('|')
+      genre_ids: (d.genres || []).map(g => g.name).join('|'),
+      title_da: daTitle,
+      actors: (d.credits?.cast || []).slice(0, 5).map(c => c.name).join('|') || '-'
     });
     if (btn) { btn.textContent = 'Added ✓'; btn.disabled = false; }
     renderQueue();
