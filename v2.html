@@ -573,9 +573,11 @@ async function fetchOverview(m) {
   try {
     const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
     const f = await fetch(`https://api.themoviedb.org/3/find/${m.imdb_id}?external_source=imdb_id`, { headers: hdrs }).then(r => r.json());
-    const id = f.movie_results?.[0]?.id;
+    const id0 = f.movie_results?.[0]?.id;
+    const id = id0 || f.tv_results?.[0]?.id;
+    const kind = id0 ? 'movie' : 'tv';
     if (!id) return '';
-    const d = await fetch(`https://api.themoviedb.org/3/movie/${id}`, { headers: hdrs }).then(r => r.json());
+    const d = await fetch(`https://api.themoviedb.org/3/${kind}/${id}`, { headers: hdrs }).then(r => r.json());
     const ov = d.overview || '';
     overviewCache.set(m.uid, ov);
     return ov;
