@@ -194,40 +194,49 @@ function buildWalls() {
   ];
 }
 function layoutUnits(bySection) {
+  /* Pack by FIT, not by taxonomy order: each wall takes whichever genres use its
+     space best (largest remaining unit that fits). The small back wall is packed
+     first so the showcase under the neon is never left empty. */
   const walls = buildWalls();
-  const units = [], placements = [];
-  let w = 0, cursor = 0;
+  const wallOrder = [walls.find(w => w.name === 'back'), walls.find(w => w.name === 'west'), walls.find(w => w.name === 'east')];
+  const pending = [];
   for (const sec of SECTIONS) {
     const films = bySection[sec.id] || [];
     if (!films.length) continue;
-    let wall = walls[w];
-    let cols = Math.ceil(films.length / wall.rows.length);
-    let width = cols * SLOT + 2 * UNIT_EDGE;
-    while (w < walls.length && cursor + width > walls[w].len) {
-      w++; cursor = 0;
-      if (w < walls.length) {
-        wall = walls[w];
-        cols = Math.ceil(films.length / wall.rows.length);
-        width = cols * SLOT + 2 * UNIT_EDGE;
-      }
-    }
-    if (w >= walls.length) return { units, placements, overflow: true };
-    const unit = { sec, wall, start: cursor, width, cols, count: films.length };
-    units.push(unit);
-    films.forEach((m, k) => {
-      const row = Math.floor(k / cols), col = k % cols;
-      const off = cursor + UNIT_EDGE + (SLOT / 2) + col * SLOT;
-      placements.push({
-        m, sec, unit,
-        x: wall.x0 + wall.dx * off,
-        z: wall.z0 + wall.dz * off,
-        y: wall.rows[row],
-        rotY: wall.rotY, run: wall.name
-      });
-    });
-    cursor += width + UNIT_GAP;
+    pending.push({ sec, films });
   }
-  return { units, placements, overflow: false };
+  const units = [], placements = [];
+  for (const wall of wallOrder) {
+    let cursor = 0;
+    for (;;) {
+      // widths depend on the wall's row count
+      let best = -1, bestWidth = 0;
+      for (let i = 0; i < pending.length; i++) {
+        const cols = Math.ceil(pending[i].films.length / wall.rows.length);
+        const width = cols * SLOT + 2 * UNIT_EDGE;
+        if (cursor + width <= wall.len && width > bestWidth) { best = i; bestWidth = width; }
+      }
+      if (best < 0) break;
+      const { sec, films } = pending.splice(best, 1)[0];
+      const cols = Math.ceil(films.length / wall.rows.length);
+      const width = cols * SLOT + 2 * UNIT_EDGE;
+      const unit = { sec, wall, start: cursor, width, cols, count: films.length };
+      units.push(unit);
+      films.forEach((m, k) => {
+        const row = Math.floor(k / cols), col = k % cols;
+        const off = cursor + UNIT_EDGE + (SLOT / 2) + col * SLOT;
+        placements.push({
+          m, sec, unit,
+          x: wall.x0 + wall.dx * off,
+          z: wall.z0 + wall.dz * off,
+          y: wall.rows[row],
+          rotY: wall.rotY, run: wall.name
+        });
+      });
+      cursor += width + UNIT_GAP;
+    }
+  }
+  return { units, placements, overflow: pending.length > 0, unplaced: pending.map(p => `${p.sec.label}(${p.films.length})`) };
 }
 
 /* ── canvas textures ── */
