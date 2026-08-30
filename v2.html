@@ -81,18 +81,18 @@ const CSV_URL = 'https://raw.githubusercontent.com/wonderdk/bekindrewind/main/mo
 const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxZTY3N2ZiMTVjMGM4ZDBkNTMzNjQzMGYxNmNlOTFmMiIsIm5iZiI6MTc3NjQxMjk3Mi4zMDIsInN1YiI6IjY5ZTFlOTJjNmJlM2VmOWRmZThiN2I1MCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.LmxBN4pTZr1OsghaHWA2LkbrqJrGNqftKmyQ1ZUNOQA';
 
 const SECTIONS = [
-  { id:'horror',    label:'HORROR',      genres:['Horror'],                       tint:0x4a1616 },
-  { id:'thriller',  label:'THRILLER',    genres:['Thriller','Mystery'],           tint:0x261f30 },
-  { id:'crime',     label:'CRIME',       genres:['Crime'],                        tint:0x322a1c },
-  { id:'scifi',     label:'SCI-FI',      genres:['Sci-Fi','Science Fiction'],     tint:0x1e2f3e },
-  { id:'adventure', label:'ADVENTURE',   genres:['Adventure'],                    tint:0x2e3a22 },
-  { id:'fantasy',   label:'FANTASY',     genres:['Fantasy'],                      tint:0x243228 },
-  { id:'drama',     label:'DRAMA',       genres:['Drama','Romance','History'],    tint:0x33261e },
-  { id:'kids',      label:'KIDS',        genres:['Animation','Family'],           tint:0x3d3218 },
-  { id:'comedy',    label:'COMEDY',      genres:['Comedy','Music'],               tint:0x453a1a },
-  { id:'action',    label:'ACTION',      genres:['Action','War','Western'],       tint:0x3e2413 },
-  { id:'docs',      label:'DOCUMENTARY', genres:['Documentary'],                  tint:0x2a3236 },
-  { id:'misc',      label:'MISC',        genres:[],                               tint:0x2a2a2a }
+  { id:'kids',      label:'KIDS & FAMILY',      tint:0x3d3218 },
+  { id:'tv',        label:'TV SERIES',          tint:0x28323a },
+  { id:'danish',    label:'DANISH & NORDIC',    tint:0x5a1a1e },
+  { id:'horror',    label:'HORROR',             tint:0x4a1616 },
+  { id:'thriller',  label:'THRILLER',           tint:0x261f30 },
+  { id:'crime',     label:'CRIME',              tint:0x322a1c },
+  { id:'scifi',     label:'SCI-FI',             tint:0x1e2f3e },
+  { id:'actionadv', label:'ACTION & ADVENTURE', tint:0x3e2413 },
+  { id:'fantasy',   label:'FANTASY',            tint:0x243228 },
+  { id:'comedy',    label:'COMEDY',             tint:0x453a1a },
+  { id:'drama',     label:'DRAMA',              tint:0x33261e },
+  { id:'misc',      label:'DIVERSE',            tint:0x2a2a2a }
 ];
 
 function parseCSV(text) {
@@ -121,15 +121,46 @@ function parseCSV(text) {
   return rows;
 }
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-/* Which section OWNS a multi-genre film (differs from the shelf order along the store) */
-const BUCKET_ORDER = ['kids','horror','thriller','crime','scifi','comedy','adventure','fantasy','drama','action','docs','misc'];
+/* Physical shelf-plan categorization. A film inside a box set is shelved
+   where its BOX stands, because that is where you will physically find it. */
+const TV_IDS = new Set(['tt0098936','tt0185906','tt2356777','tt0159206','tt0106179','tt1733785','tt0795176']);
+const NORDIC_DIRS = new Set(['lars von trier','anders thomas jensen','thomas vinterberg','ole bornedal','nicolas winding refn','susanne bier','nikolaj arcel','bille august','erik balling','anders matthesen','thorbjørn christoffersen']);
+const DANISH_TITLES = ['olsen banden','blinkende lygter','bænken','støv på hjernen','støv for alle pengene','ternet ninja','den sidste viking','fucking åmål','i kina spiser de hunde','gamle mænd i nye biler','de grønne slagtere','festen','italiensk for begyndere','midt om natten','riget','dirch'];
+const KIDS_EXTRA = ['lucky luke','cirkeline','alfons åberg','byggemand bob','asterix','flugten fra hønsegården'];
+const ADULT_ANIM = ['akira','ghost in the shell','perfect blue','æon flux'];
+const BOX_MAP = {
+  'A Nightmare on Elm Street Collection':'horror', 'Howling III / Howling IV / Howling V / The Night Caller':'horror',
+  'The Hitchcock Collection':'thriller',
+  'The Godfather DVD Collection':'crime', 'The French Connection / French Connection II':'crime',
+  'Takeshi Kitano Collection':'crime', 'Memories of Murder / Mother / Barking Dogs Never Bite':'crime',
+  'Den komplette Stieg Larsson Millennium Trilogi':'danish', 'Europe Trilogy':'danish',
+  'Alien Quadrilogy Box Set':'scifi', 'Back to the Future: The Ultimate Trilogy':'scifi',
+  'Men in Black Two Pack':'scifi', 'Star Wars Trilogy':'scifi', 'The Day After Tomorrow / Independence Day':'scifi',
+  'Jurassic Park Ultimate Trilogy':'actionadv', 'X-Men Trilogy':'actionadv', 'Top Gun / Days of Thunder':'actionadv',
+  'The Lord of the Rings: The Motion Picture Trilogy':'fantasy', 'Harry Potter: Complete 8-film collection':'fantasy', 'The Twilight Saga Trilogy':'fantasy',
+  'ACE VENTURA 1 + 2':'comedy', 'Meet the Parents / Meet the Fockers':'comedy',
+  'Asterix DVD Collection':'kids'
+};
+const secById = id => SECTIONS.find(x => x.id === id);
 function sectionFor(m) {
-  const genres = (m.genre_ids || '').split('|').map(g => g.trim()).filter(Boolean);
-  for (const id of BUCKET_ORDER) {
-    const s = SECTIONS.find(x => x.id === id);
-    if (s.genres.some(g => genres.includes(g))) return s;
-  }
-  return SECTIONS.find(x => x.id === 'misc');
+  if (m.box_set && BOX_MAP[m.box_set]) return secById(BOX_MAP[m.box_set]);
+  const t = (m.title || '').toLowerCase();
+  const da = (m.title_da || '').toLowerCase();
+  const g = new Set((m.genre_ids || '').split('|').map(x => x.trim()).filter(Boolean));
+  if (ADULT_ANIM.some(k => t.includes(k))) return secById(t.includes('æon flux') ? 'tv' : 'scifi');
+  if (TV_IDS.has(m.imdb_id) || t.includes('sæson') || t.includes('season')) return secById('tv');
+  if (KIDS_EXTRA.some(k => t.includes(k))) return secById('kids');
+  if (g.has('Animation') || g.has('Family')) return secById('kids');
+  if (NORDIC_DIRS.has((m.director || '').toLowerCase()) || DANISH_TITLES.some(k => t.includes(k) || da.includes(k))) return secById('danish');
+  if (g.has('Horror')) return secById('horror');
+  if (g.has('Thriller') || g.has('Mystery')) return secById('thriller');
+  if (g.has('Crime')) return secById('crime');
+  if (g.has('Sci-Fi') || g.has('Science Fiction')) return secById('scifi');
+  if (g.has('Action') || g.has('Adventure') || g.has('War') || g.has('Western')) return secById('actionadv');
+  if (g.has('Fantasy')) return secById('fantasy');
+  if (g.has('Comedy') || g.has('Music')) return secById('comedy');
+  if (g.has('Drama') || g.has('Romance') || g.has('History')) return secById('drama');
+  return secById('misc');
 }
 function seededPicks(pool, n) {
   const d = new Date();
@@ -157,9 +188,9 @@ const ROWS_SIDE = [2.03, 1.60, 1.17, 0.74];   // top row first (reading order)
 const ROWS_BACK = [1.93, 1.52, 1.11, 0.70];   // slightly lower, clearing the neon
 function buildWalls() {
   return [
-    { name:'west', x0:-1.42, z0:-0.60, dx:0, dz:-1, rotY: Math.PI/2, len:18.8, rows:ROWS_SIDE },
-    { name:'back', x0:-1.50, z0:-19.72, dx:1, dz:0, rotY:0,          len:3.00, rows:ROWS_BACK },
-    { name:'east', x0: 1.42, z0:-19.50, dx:0, dz:1, rotY:-Math.PI/2, len:18.8, rows:ROWS_SIDE }
+    { name:'west', x0:-1.42, z0:-0.60, dx:0, dz:-1, rotY: Math.PI/2, len:19.2, rows:ROWS_SIDE },
+    { name:'east', x0: 1.42, z0:-19.90, dx:0, dz:1, rotY:-Math.PI/2, len:19.2, rows:ROWS_SIDE },
+    { name:'back', x0:-1.50, z0:-20.12, dx:1, dz:0, rotY:0,          len:3.00, rows:ROWS_BACK }
   ];
 }
 function layoutUnits(bySection) {
@@ -373,7 +404,8 @@ function updateCrtVolume() {
   if (!audioUnlocked || !videoEl) return;
   const dx = camera.position.x - (-1.3), dz = camera.position.z - 1.35;
   const d = Math.sqrt(dx*dx + dz*dz);
-  videoEl.volume = Math.max(0, Math.min(1, 1 - d / 3.5)) * 0.45;
+  const v = Math.max(0, Math.min(1, 1 - d / 3.5)) * 0.45;
+  if (Math.abs(v - videoEl.volume) > 0.02) videoEl.volume = v;
 }
 
 function fail(msg) {
@@ -388,36 +420,36 @@ function addCollider(minX,maxX,minZ,maxZ){ colliders.push({minX,maxX,minZ,maxZ})
 
 function buildRoom() {
   scene.background = new THREE.Color(0x0b0705);
-  scene.fog = new THREE.Fog(0x0b0705, 3.5, 20.5);
+  scene.fog = new THREE.Fog(0x0b0705, 3.5, 21);
 
   // carpet
   const carpetTex = new THREE.CanvasTexture(carpetCanvas());
   carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping; carpetTex.repeat.set(5, 30);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 22.8), new THREE.MeshLambertMaterial({ map: carpetTex }));
-  floor.rotation.x = -Math.PI/2; floor.position.set(0, 0, -9.0); scene.add(floor);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 23.4), new THREE.MeshLambertMaterial({ map: carpetTex }));
+  floor.rotation.x = -Math.PI/2; floor.position.set(0, 0, -9.3); scene.add(floor);
   // warm pool of neon light on the carpet toward the back
   const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 7.5),
     new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowPoolCanvas()), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  pool.rotation.x = -Math.PI/2; pool.position.set(0, 0.012, -17.3); scene.add(pool);
+  pool.rotation.x = -Math.PI/2; pool.position.set(0, 0.012, -17.7); scene.add(pool);
 
   // ceiling + walls
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 22.8), lam(0x090604));
-  ceil.rotation.x = Math.PI/2; ceil.position.set(0, 2.8, -9.0); scene.add(ceil);
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 23.4), lam(0x090604));
+  ceil.rotation.x = Math.PI/2; ceil.position.set(0, 2.8, -9.3); scene.add(ceil);
   const wallMat = lam(0x0d0805);
   const mkWall = (w,h,x,y,z,ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), wallMat); m.position.set(x,y,z); m.rotation.y = ry; scene.add(m); };
-  mkWall(3.8, 2.8, 0, 1.4, -20.3, 0);
+  mkWall(3.8, 2.8, 0, 1.4, -20.7, 0);
   mkWall(3.8, 2.8, 0, 1.4,  2.35, Math.PI);
-  mkWall(22.8, 2.8, -1.88, 1.4, -9.0,  Math.PI/2);
-  mkWall(22.8, 2.8,  1.88, 1.4, -9.0, -Math.PI/2);
+  mkWall(23.4, 2.8, -1.88, 1.4, -9.3,  Math.PI/2);
+  mkWall(23.4, 2.8,  1.88, 1.4, -9.3, -Math.PI/2);
 
   // entrance: dark door with cold street light seeping in behind the player
   const door = box(0.9, 2.05, 0.06, lam(0x0b0c0f), 0.55, 1.02, 2.31);
   const street = new THREE.PointLight(0x7fa4c4, 0.35, 4.5); street.position.set(0.55, 1.6, 1.6); scene.add(street);
 
   // walking space: keep the player out of the shelf strips
-  addCollider(-1.95, -1.40, -20.0, -0.45);   // west shelf strip
-  addCollider( 1.40,  1.95, -20.0, -0.45);   // east shelf strip
-  addCollider(-1.95,  1.95, -20.3, -19.68);  // back shelf strip
+  addCollider(-1.95, -1.40, -20.4, -0.45);   // west shelf strip
+  addCollider( 1.40,  1.95, -20.4, -0.45);   // east shelf strip
+  addCollider(-1.95,  1.95, -20.7, -20.08);  // back shelf strip
 
   // fluorescent tubes down the long aisle, slightly askew like the photo
   const mkTube = (x, z, ry, bright) => {
@@ -437,14 +469,14 @@ function buildRoom() {
   scene.add(coolSpot); scene.add(coolSpot.target);
   mkTube(-0.15, -7.2, -0.35, false);
   mkTube(0.12, -12.2, 0.3, false);
-  mkTube(-0.1, -17.6, -0.25, false);
+  mkTube(-0.1, -18.0, -0.25, false);
 
   // neon above the back shelf + the orange bath
   const neonMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(neonCanvas()), transparent: true, fog: false });
   neonMat.toneMapped = false;
   const neon = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.74), neonMat);
-  neon.position.set(0, 2.42, -20.26); scene.add(neon);
-  const orange = new THREE.PointLight(0xff7a10, 1.4, 12); orange.position.set(0, 2.1, -19.1); scene.add(orange);
+  neon.position.set(0, 2.42, -20.66); scene.add(neon);
+  const orange = new THREE.PointLight(0xff7a10, 1.4, 12); orange.position.set(0, 2.1, -19.5); scene.add(orange);
   const orangeMid = new THREE.PointLight(0xff8a20, 0.5, 8); orangeMid.position.set(0, 1.6, -9.5); scene.add(orangeMid);
   const orangeMid2 = new THREE.PointLight(0xff8a20, 0.35, 7); orangeMid2.position.set(0, 1.5, -15.2); scene.add(orangeMid2);
 
@@ -624,10 +656,12 @@ function refreshGondola() {
 const texLoader = new THREE.TextureLoader();
 texLoader.setCrossOrigin('anonymous');
 const IS_TOUCH = 'ontouchstart' in window;
-const TEX_BUDGET = IS_TOUCH ? 340 : 2000, LOAD_NEAR = IS_TOUCH ? 9 : 60, CONCURRENT = 12;
+const TEX_BUDGET = IS_TOUCH ? 300 : 520, LOAD_NEAR = IS_TOUCH ? 9 : 20, CONCURRENT = 6;
 let inflight = 0;
 function applyTex(e, tex) {
   tex.encoding = THREE.sRGBEncoding; // without this, sRGB output washes the covers out
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
   e.tex = tex;
   const mat = e.mesh.material;
   mat.map = tex;
@@ -747,7 +781,7 @@ function movePlayer(dt) {
   nx = Math.max(-1.62 + r, Math.min(1.62 - r, nx));
   if (!blocked(nx, camera.position.z)) camera.position.x = nx;
   let nz = camera.position.z + dz;
-  nz = Math.max(-19.62 + r, Math.min(2.1 - r, nz));
+  nz = Math.max(-20.02 + r, Math.min(2.1 - r, nz));
   if (!blocked(camera.position.x, nz)) camera.position.z = nz;
 }
 
@@ -863,6 +897,11 @@ async function init() {
   buildCases();
   setupControls(canvas);
   setupCrtVideo();
+
+  canvas.addEventListener('webglcontextlost', (ev) => {
+    ev.preventDefault();
+    fail('The graphics driver gave up (usually memory pressure). Reload the page; if it repeats, tell me and I will lower the texture budget.');
+  });
 
   addEventListener('resize', () => {
     camera.aspect = innerWidth/innerHeight;
