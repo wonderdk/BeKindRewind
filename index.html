@@ -379,7 +379,7 @@ async function loadMovies() {
     const res = await fetch(CSV_URL + '?t=' + Date.now());
     const text = await res.text();
     movies = parseCSV(text);
-    document.getElementById('total').textContent = movies.length;
+    document.getElementById('total').textContent = movies.filter(m => m.hidden !== 'true').length;
     renderGrid();
     populateGenres();
   } catch(e) {
@@ -755,7 +755,7 @@ async function commitAdds() {
       : `Add ${newMovies.length} films`;
     await githubWrite(buildCsv([...movies, ...newMovies]), message);
     movies.push(...newMovies);
-    document.getElementById('total').textContent = movies.length;
+    document.getElementById('total').textContent = movies.filter(m => m.hidden !== 'true').length;
     renderGrid();
     populateGenres();
     pendingAdds = [];
