@@ -41,6 +41,9 @@ html,body{height:100%;overflow:hidden;background:#0b0705;font-family:system-ui,-
 .watched-stamp{position:absolute;top:12px;right:12px;border:2px solid;border-radius:3px;font-size:11px;padding:2px 7px;transform:rotate(9deg);opacity:.9}
 .stamp-yes{color:#7ec98a;border-color:#7ec98a}
 .stamp-no{color:var(--sticker-yellow);border-color:var(--sticker-yellow)}
+.tonight-btn{margin:10px 0 8px;background:#241505;border:1px solid #6b4326;color:#ffc07a;font-size:10.5px;letter-spacing:.1em;padding:8px 10px;border-radius:2px;cursor:pointer;text-transform:uppercase}
+.tonight-btn.on{background:#332405;border-color:#e9c832;color:#e9c832}
+.tonight-btn:hover{filter:brightness(1.2)}
 .barcode{height:26px;margin-top:auto;opacity:.7;background:repeating-linear-gradient(90deg,#cfc0a4 0 2px,transparent 2px 4px,#cfc0a4 4px 7px,transparent 7px 9px,#cfc0a4 9px 10px,transparent 10px 14px)}
 .pull-hint{text-align:center;margin-top:14px;font-size:12px;color:#a98c62}
 .pull-close{position:absolute;top:-14px;right:-14px;z-index:5;width:34px;height:34px;border-radius:50%;background:#b3402a;color:#f2e8d0;border:none;font-size:17px;line-height:1;cursor:pointer;box-shadow:0 3px 9px rgba(0,0,0,.7)}
@@ -143,18 +146,18 @@ function jitter(uid, salt) {
    z: entrance wall +2.2 … back wall -9.9
    Side runs: z -0.75 → -9.15 (8.4 m), 6 levels
    Back run: under the neon, x -1.35..1.35, 5 levels  */
-const LEVELS6 = [0.30, 0.66, 1.02, 1.38, 1.74, 2.10];
-const LEVELS5 = LEVELS6.slice(0, 5);
-const CASE_W = 0.135, CASE_H = 0.19;
+const LEVELS = [0.34, 0.76, 1.18, 1.60, 2.02];      // 5 rows on the side runs
+const LEVELS_BACK = LEVELS.slice(0, 4);              // 4 under the neon
+const CASE_W = 0.16, CASE_H = 0.225;
 function buildRuns() {
   return [
-    { name:'west', x0:-1.42, z0:-0.78, dx:0, dz:-1, rotY: Math.PI/2, len:8.4, levels:LEVELS6 },
-    { name:'east', x0: 1.42, z0:-0.78, dx:0, dz:-1, rotY:-Math.PI/2, len:8.4, levels:LEVELS6 },
-    { name:'back', x0:-1.32, z0:-9.42, dx:1, dz:0, rotY:0,           len:2.64, levels:LEVELS5 }
+    { name:'west', x0:-1.42, z0:-0.78, dx:0, dz:-1, rotY: Math.PI/2, len:12.2, levels:LEVELS },
+    { name:'east', x0: 1.42, z0:-0.78, dx:0, dz:-1, rotY:-Math.PI/2, len:12.2, levels:LEVELS },
+    { name:'back', x0:-1.32, z0:-13.52, dx:1, dz:0, rotY:0,          len:2.64, levels:LEVELS_BACK }
   ];
 }
 function chooseSpacing(count) {
-  for (const s of [0.158, 0.152, 0.148, 0.145, 0.142]) {
+  for (const s of [0.19, 0.184, 0.178, 0.172, 0.168]) {
     const cap = buildRuns().reduce((a,r) => a + Math.floor(r.len/s) * r.levels.length, 0);
     if (cap >= count) return s;
   }
@@ -163,7 +166,7 @@ function chooseSpacing(count) {
 function assignSlots(bySection, count) {
   const runs = buildRuns();
   const S = chooseSpacing(count);
-  const placements = [], signs = [];
+  const placements = [], signs = [], boundaries = [], spans = [];
   let r = 0, level = 0, i = 0;
   const perRun = runs.map(rn => Math.floor(rn.len / S));
   const next = () => {
@@ -173,7 +176,7 @@ function assignSlots(bySection, count) {
         const off = (S/2) + i*S;
         const slot = {
           x: rn.x0 + rn.dx*off, z: rn.z0 + rn.dz*off,
-          y: rn.levels[level], rotY: rn.rotY, run: rn.name
+          y: rn.levels[level], rotY: rn.rotY, run: rn.name, runIdx: r, col: i
         };
         level++; // fill the bay top-to-bottom first, then move along the run
         if (level >= rn.levels.length) { level = 0; i++; if (i >= perRun[r]) { i = 0; r++; } }
@@ -186,14 +189,23 @@ function assignSlots(bySection, count) {
   for (const sec of SECTIONS) {
     const films = bySection[sec.id] || [];
     if (!films.length) continue;
-    let first = true;
+    let first = true, spanRun = null, span0 = 0, span1 = 0;
     for (const m of films) {
       const slot = next();
-      if (!slot) return { placements, signs, spacing:S, overflow:true };
-      if (first && slot.y === LEVELS6[0]) { /* sign only reads well higher up */ }
-      if (first) { signs.push({ label: sec.label, x: slot.x, z: slot.z, rotY: slot.rotY }); first = false; }
+      if (!slot) return { placements, signs, boundaries, spans, spacing:S, overflow:true };
+      if (first) {
+        signs.push({ label: sec.label, x: slot.x, z: slot.z, rotY: slot.rotY });
+        boundaries.push({ runIdx: slot.runIdx, col: slot.col }); // divider sits before this column
+        first = false;
+      }
+      if (spanRun !== slot.runIdx) {
+        if (spanRun !== null) spans.push({ sec, runIdx: spanRun, col0: span0, col1: span1 });
+        spanRun = slot.runIdx; span0 = slot.col;
+      }
+      span1 = slot.col;
       placements.push({ m, sec, ...slot });
     }
+    if (spanRun !== null) spans.push({ sec, runIdx: spanRun, col0: span0, col1: span1 });
   }
   // center the back run's used columns so the leftover space splits evenly
   const backPl = placements.filter(p => p.run === 'back');
@@ -203,8 +215,10 @@ function assignSlots(bySection, count) {
     const shift = (backRun.len - usedLen) / 2 - (Math.min(...backPl.map(p => p.x)) - backRun.x0 - S/2);
     for (const p of backPl) p.x += shift;
     for (const g of signs) if (Math.abs(g.z - backRun.z0) < 0.01) g.x += shift;
+    for (const sp of spans) if (sp.runIdx === 2) sp.shift = shift;
+    for (const b of boundaries) if (b.runIdx === 2) b.shift = shift;
   }
-  return { placements, signs, spacing:S, overflow:false };
+  return { placements, signs, boundaries, spans, spacing:S, overflow:false };
 }
 
 /* ── canvas textures ── */
@@ -276,8 +290,8 @@ function fakePosterCanvas(m, tint) { // TEST_MODE only: stand-in cover art
   const x = c.getContext('2d');
   const h = ((tint >> 16 & 255) + (tint >> 8 & 255)) % 360;
   const g = x.createLinearGradient(0,0,0,138);
-  g.addColorStop(0, `hsl(${(h + parseInt(m.uid)*37) % 360} 30% 33%)`);
-  g.addColorStop(1, `hsl(${(h + parseInt(m.uid)*37 + 40) % 360} 34% 13%)`);
+  g.addColorStop(0, `hsl(${(h + parseInt(m.uid)*37) % 360} 34% 46%)`);
+  g.addColorStop(1, `hsl(${(h + parseInt(m.uid)*37 + 40) % 360} 36% 18%)`);
   x.fillStyle = g; x.fillRect(0,0,92,138);
   x.fillStyle = 'rgba(255,255,255,.85)'; x.textAlign = 'center';
   x.font = '700 11px Arial'; 
@@ -290,6 +304,7 @@ function fakePosterCanvas(m, tint) { // TEST_MODE only: stand-in cover art
 /* ── state ── */
 let renderer, scene, camera, movies = [];
 const posterMeshes = [];
+const gondolaPlanes = [];
 const colliders = [];
 const texState = new Map();
 const overviewCache = new Map();
@@ -304,13 +319,18 @@ const TRAILERS = TEST_MODE ? [
   { mp4: '/t1.webm', ogv: '/t1.webm' },
   { mp4: '/t2.webm', ogv: '/t2.webm' }
 ] : [
+  // local copies (same origin, no CORS risk): commit the two public-domain files to /trailers in the repo
+  { mp4: 'trailers/night-of-the-living-dead.mp4' },
+  { mp4: 'trailers/house-on-haunted-hill.mp4' },
+  // remote fallbacks, used when the local files are missing
   { mp4: 'https://archive.org/download/NightOfTheLivingDeadTrailer/NightLivingDeadTrailer_512kb.mp4',
     ogv: 'https://archive.org/download/NightOfTheLivingDeadTrailer/NightLivingDeadTrailer.ogv' },
   { mp4: 'https://archive.org/download/sinema-trailer_house-on-haunted-hill/Trailer%20-%20House%20On%20Haunted%20Hill%20%281959%29%20%28480p_24fps_H264-128kbit_AAC%29.mp4',
     ogv: 'https://archive.org/download/sinema-trailer_house-on-haunted-hill/Trailer%20-%20House%20On%20Haunted%20Hill%20%281959%29%20%28480p_24fps_H264-128kbit_AAC%29.ogv' }
 ];
+let crtDisabled = false;
 function nextTrailer() {
-  if (!videoEl || trailerFails >= TRAILERS.length) return; // give up -> static stays
+  if (!videoEl || crtDisabled || trailerFails >= TRAILERS.length) return; // give up -> static stays
   trailerIdx = (trailerIdx + 1) % TRAILERS.length;
   if (crtMat) { crtMat.map = staticTex; crtMat.needsUpdate = true; } // channel-flip static between tapes
   const t = TRAILERS[trailerIdx];
@@ -337,11 +357,27 @@ function setupCrtVideo() {
     document.body.appendChild(videoEl);
     videoEl.addEventListener('playing', () => {
       trailerFails = 0;
-      if (!videoTex) {
-        videoTex = new THREE.VideoTexture(videoEl);
-        videoTex.minFilter = THREE.LinearFilter;
-      }
-      if (crtMat) { crtMat.map = videoTex; crtMat.needsUpdate = true; }
+      // taint check: if this source can't be sampled, WebGL would render it black.
+      setTimeout(() => {
+        if (crtDisabled || videoEl.paused) return;
+        try {
+          const c = document.createElement('canvas'); c.width = 2; c.height = 2;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(videoEl, 0, 0, 2, 2);
+          ctx.getImageData(0, 0, 1, 1); // throws if cross-origin tainted
+          if (!videoTex) {
+            videoTex = new THREE.VideoTexture(videoEl);
+            videoTex.minFilter = THREE.LinearFilter;
+            videoTex.encoding = THREE.sRGBEncoding;
+          }
+          if (crtMat) { crtMat.map = videoTex; crtMat.needsUpdate = true; }
+        } catch(err) {
+          console.warn('CRT: video blocked for WebGL (CORS), staying on static', err);
+          crtDisabled = true;
+          videoEl.pause(); videoEl.muted = true;
+          if (crtMat) { crtMat.map = staticTex; crtMat.needsUpdate = true; }
+        }
+      }, 350);
     });
     videoEl.addEventListener('ended', nextTrailer);
     videoEl.addEventListener('error', () => { trailerFails++; nextTrailer(); });
@@ -374,27 +410,27 @@ function addCollider(minX,maxX,minZ,maxZ){ colliders.push({minX,maxX,minZ,maxZ})
 
 function buildRoom() {
   scene.background = new THREE.Color(0x0b0705);
-  scene.fog = new THREE.Fog(0x0b0705, 3.5, 15);
+  scene.fog = new THREE.Fog(0x0b0705, 3.5, 17);
 
   // carpet
   const carpetTex = new THREE.CanvasTexture(carpetCanvas());
-  carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping; carpetTex.repeat.set(5, 16);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 12.4), new THREE.MeshLambertMaterial({ map: carpetTex }));
-  floor.rotation.x = -Math.PI/2; floor.position.set(0, 0, -3.85); scene.add(floor);
+  carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping; carpetTex.repeat.set(5, 22);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 16.6), new THREE.MeshLambertMaterial({ map: carpetTex }));
+  floor.rotation.x = -Math.PI/2; floor.position.set(0, 0, -5.9); scene.add(floor);
   // warm pool of neon light on the carpet toward the back
   const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 6.5),
     new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowPoolCanvas()), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  pool.rotation.x = -Math.PI/2; pool.position.set(0, 0.012, -7.2); scene.add(pool);
+  pool.rotation.x = -Math.PI/2; pool.position.set(0, 0.012, -11.2); scene.add(pool);
 
   // ceiling + walls
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 12.4), lam(0x090604));
-  ceil.rotation.x = Math.PI/2; ceil.position.set(0, 2.8, -3.85); scene.add(ceil);
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 16.6), lam(0x090604));
+  ceil.rotation.x = Math.PI/2; ceil.position.set(0, 2.8, -5.9); scene.add(ceil);
   const wallMat = lam(0x0d0805);
   const mkWall = (w,h,x,y,z,ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), wallMat); m.position.set(x,y,z); m.rotation.y = ry; scene.add(m); };
-  mkWall(3.8, 2.8, 0, 1.4, -9.9, 0);
+  mkWall(3.8, 2.8, 0, 1.4, -14.0, 0);
   mkWall(3.8, 2.8, 0, 1.4,  2.35, Math.PI);
-  mkWall(12.4, 2.8, -1.88, 1.4, -3.85,  Math.PI/2);
-  mkWall(12.4, 2.8,  1.88, 1.4, -3.85, -Math.PI/2);
+  mkWall(16.6, 2.8, -1.88, 1.4, -5.9,  Math.PI/2);
+  mkWall(16.6, 2.8,  1.88, 1.4, -5.9, -Math.PI/2);
 
   // entrance: dark door with cold street light seeping in behind the player
   const door = box(0.9, 2.05, 0.06, lam(0x0b0c0f), 0.55, 1.02, 2.31);
@@ -404,20 +440,16 @@ function buildRoom() {
   const woodBack = lam(0x100904), woodBoard = lam(0x180e07), woodEdge = lam(0x160d05);
   const buildShelfRun = (side) => { // side: -1 west, +1 east
     const x = side * 1.66;
-    box(0.44, 2.55, 8.9, woodBack, x, 1.275, -4.95);
-    for (const y of [...LEVELS6, 2.46]) {
-      box(0.4, 0.028, 8.7, woodBoard, side*1.60, y - 0.028, -4.95);
+    box(0.44, 2.55, 12.7, woodBack, x, 1.275, -6.85);
+    for (const y of [...LEVELS, 2.46]) {
+      box(0.4, 0.028, 12.5, woodBoard, side*1.60, y - 0.028, -6.85);
     }
-    // uprights every ~2.1m
-    for (const z of [-0.72, -2.82, -4.92, -7.02, -9.12]) {
-      box(0.4, 2.5, 0.035, woodEdge, side*1.60, 1.25, z);
-    }
-    box(0.42, 0.09, 8.8, woodEdge, side*1.61, 2.52, -4.95); // crown
-    box(0.42, 0.10, 8.8, lam(0x0b0603), side*1.61, 0.05, -4.95); // kick
-    addCollider(side < 0 ? -1.95 : 1.38, side < 0 ? -1.38 : 1.95, -9.3, -0.6);
+    box(0.42, 0.09, 12.6, woodEdge, side*1.61, 2.52, -6.85); // crown
+    box(0.42, 0.10, 12.6, lam(0x0b0603), side*1.61, 0.05, -6.85); // kick
+    addCollider(side < 0 ? -1.95 : 1.38, side < 0 ? -1.38 : 1.95, -13.1, -0.6);
     // clutter boxes on top (deterministic)
-    for (let i = 0; i < 9; i++) {
-      const zz = -1.1 - i*0.92 + jitter(i, side < 0 ? 7 : 13)*0.4;
+    for (let i = 0; i < 13; i++) {
+      const zz = -1.1 - i*0.94 + jitter(i, side < 0 ? 7 : 13)*0.4;
       const w = 0.22 + Math.abs(jitter(i, 3))*0.25, h = 0.14 + Math.abs(jitter(i, 5))*0.2;
       const tone = [0x150e0a, 0x121016, 0x170c08, 0x131310][i % 4];
       box(0.3, h, w, lam(tone), side*1.62, 2.57 + h/2, zz);
@@ -425,18 +457,18 @@ function buildRoom() {
   };
   buildShelfRun(-1);
   buildShelfRun( 1);
-  // back run carcass (5 levels, neon above)
-  box(3.5, 2.2, 0.4, woodBack, 0, 1.1, -9.66); addCollider(-1.9, 1.9, -9.95, -9.36);
-  for (const y of [...LEVELS5, 2.12]) box(3.0, 0.028, 0.36, woodBoard, 0, y - 0.028, -9.60);
-  box(3.1, 0.09, 0.38, woodEdge, 0, 2.2, -9.60);
+  // back run carcass (4 levels, neon above)
+  box(3.5, 2.2, 0.4, woodBack, 0, 1.1, -13.76); addCollider(-1.9, 1.9, -14.05, -13.46);
+  for (const y of [...LEVELS_BACK, 1.94]) box(3.0, 0.028, 0.36, woodBoard, 0, y - 0.028, -13.70);
+  box(3.1, 0.09, 0.38, woodEdge, 0, 2.02, -13.70);
 
   // neon above the back shelf
   const neonMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(neonCanvas()), transparent: true, fog: false });
   neonMat.toneMapped = false;
   const neon = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.82), neonMat);
-  neon.position.set(0, 2.5, -9.86); scene.add(neon);
-  const orange = new THREE.PointLight(0xff7a10, 1.4, 10); orange.position.set(0, 2.15, -8.9); scene.add(orange);
-  const orangeMid = new THREE.PointLight(0xff8a20, 0.5, 7); orangeMid.position.set(0, 1.6, -5.2); scene.add(orangeMid);
+  neon.position.set(0, 2.45, -13.96); scene.add(neon);
+  const orange = new THREE.PointLight(0xff7a10, 1.4, 12); orange.position.set(0, 2.1, -12.9); scene.add(orange);
+  const orangeMid = new THREE.PointLight(0xff8a20, 0.5, 8); orangeMid.position.set(0, 1.6, -7.4); scene.add(orangeMid);
 
   // one fluorescent tube up front (the photo's single cool light), slightly askew
   const tubeGrp = new THREE.Group();
@@ -446,14 +478,17 @@ function buildRoom() {
   tubeGrp.position.set(0.1, 2.74, -1.35);
   tubeGrp.rotation.y = 0.5;
   scene.add(tubeGrp);
-  const cool = new THREE.PointLight(0xdcf2f6, 0.55, 5); cool.position.set(0.1, 2.55, -1.35); scene.add(cool);
+  const cool = new THREE.PointLight(0xdcf2f6, 0.45, 5); cool.position.set(0.1, 2.55, -1.35); scene.add(cool);
   const coolSpot = new THREE.SpotLight(0xcfe9ee, 0.45, 6, 0.7, 0.65);
   coolSpot.position.set(0.1, 2.7, -1.35); coolSpot.target.position.set(0.1, 0, -1.35);
   scene.add(coolSpot); scene.add(coolSpot.target);
   // a second, dimmer tube deeper in (geometry mostly, faint light)
   const tube2 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 1.0), new THREE.MeshLambertMaterial({ color: 0xcfe0e2, emissive: 0x9fb8ba }));
-  tube2.position.set(-0.15, 2.72, -6.4); tube2.rotation.y = -0.35; scene.add(tube2);
-  const cool2 = new THREE.PointLight(0xcfe9ee, 0.22, 4); cool2.position.set(-0.15, 2.55, -6.4); scene.add(cool2);
+  tube2.position.set(-0.15, 2.72, -7.2); tube2.rotation.y = -0.35; scene.add(tube2);
+  const cool2 = new THREE.PointLight(0xcfe9ee, 0.22, 4); cool2.position.set(-0.15, 2.55, -7.2); scene.add(cool2);
+  const tube3 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.95), new THREE.MeshLambertMaterial({ color: 0xb8c8ca, emissive: 0x7a9294 }));
+  tube3.position.set(0.12, 2.72, -11.4); tube3.rotation.y = 0.3; scene.add(tube3);
+  const cool3 = new THREE.PointLight(0xcfe9ee, 0.16, 3.5); cool3.position.set(0.12, 2.55, -11.4); scene.add(cool3);
 
   scene.add(new THREE.AmbientLight(0x4a3322, 0.18));
 
@@ -490,10 +525,38 @@ function buildCases() {
   const bySection = {};
   SECTIONS.forEach(s => bySection[s.id] = []);
   visible.forEach(m => bySection[sectionFor(m).id].push(m));
-  SECTIONS.forEach(s => bySection[s.id].sort((a,b) => a.title.localeCompare(b.title)));
+  const sortKey = t => t.replace(/^(the|a|an|den|det|en|et)\s+/i, '');
+  SECTIONS.forEach(s => bySection[s.id].sort((a,b) => sortKey(a.title).localeCompare(sortKey(b.title))));
 
-  const { placements, signs, spacing, overflow } = assignSlots(bySection, visible.length);
+  const { placements, signs, boundaries, spans, spacing, overflow } = assignSlots(bySection, visible.length);
   if (overflow) console.warn('shelf capacity exceeded');
+  const runs = buildRuns();
+
+  // dividers exactly on the slot grid at each genre boundary, so no case sits behind wood
+  const upMatE = lam(0x160d05);
+  for (const b of boundaries) {
+    if (b.col === 0) continue; // run start, the carcass end covers it
+    const rn = runs[b.runIdx];
+    const off = b.col * spacing + (b.shift || 0);
+    const bx = rn.x0 + rn.dx * off, bz = rn.z0 + rn.dz * off;
+    // recessed behind the case bodies so no cover is ever hidden behind wood
+    if (rn.name === 'back') box(0.035, 1.9, 0.26, upMatE, bx, 0.97, -13.77);
+    else box(0.26, 2.5, 0.035, upMatE, Math.sign(rn.x0) * 1.75, 1.25, bz);
+  }
+  // a colored strip above each genre's span: instant wayfinding
+  for (const sp of spans) {
+    const rn = runs[sp.runIdx];
+    const off0 = sp.col0 * spacing + (sp.shift || 0), off1 = (sp.col1 + 1) * spacing + (sp.shift || 0);
+    const mid = (off0 + off1) / 2, len = off1 - off0;
+    const stripMat = new THREE.MeshLambertMaterial({ color: sp.sec.tint, emissive: sp.sec.tint, emissiveIntensity: 0.55 });
+    if (rn.name === 'back') {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(len, 0.045, 0.02), stripMat);
+      strip.position.set(rn.x0 + mid, 1.99, -13.50); scene.add(strip);
+    } else {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.045, len), stripMat);
+      strip.position.set(Math.sign(rn.x0) * 1.44, 2.49, rn.z0 - mid); scene.add(strip);
+    }
+  }
 
   const bodyGeo = new THREE.BoxGeometry(CASE_W + 0.004, CASE_H + 0.006, 0.026);
   const bodies = new THREE.InstancedMesh(bodyGeo, lam(0x101014), placements.length);
@@ -531,13 +594,12 @@ function buildCases() {
     const nx = Math.sin(s.rotY), nz = Math.cos(s.rotY);
     const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.15),
       new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(tagCanvas(s.label)) }));
-    tag.position.set(s.x + nx*0.20, s.rotY === 0 ? 2.04 : 2.36, s.z + nz*0.20);
+    tag.position.set(s.x + nx*0.20, s.rotY === 0 ? 2.12 : 2.36, s.z + nz*0.20);
     tag.rotation.y = s.rotY;
     scene.add(tag);
   }
 
-  // gondola mid-aisle with tonight's picks facing the entrance
-  const picks = seededPicks(visible.filter(m => m.watched !== 'true' && m.poster_url), 6);
+  // gondola mid-aisle: shows YOUR tonight list (shared with the collection app), else daily picks
   const woodEdge = lam(0x3c2712);
   box(0.68, 1.02, 1.7, lam(0x160b05), 0, 0.51, -3.9); addCollider(-0.36, 0.36, -4.77, -3.03);
   // a few tapes lying on top and a returns tray, so the surface isn't a bare slab
@@ -555,28 +617,54 @@ function buildCases() {
     new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(noteCanvas("TONIGHT'S PICKS")) }));
   sign.position.set(0, 1.14, -3.006); scene.add(sign);
   const planeGeo2 = new THREE.PlaneGeometry(CASE_W, CASE_H);
-  picks.forEach((m, k) => {
+  for (let k = 0; k < 6; k++) {
     const row = Math.floor(k / 3), col = k % 3;
     const plane = new THREE.Mesh(planeGeo2, lam(0x22222c));
-    plane.scale.set(1.22, 1.22, 1);
-    plane.position.set(-0.2 + col*0.2, 0.84 - row*0.3, -3.004);
-    plane.userData.m = m;
+    plane.position.set(-0.215 + col*0.215, 0.82 - row*0.31, -3.004);
+    plane.visible = false;
     scene.add(plane);
     posterMeshes.push(plane);
-    texState.set('pick-' + m.uid, { mesh: plane, m, tint: 0x22222c, prio: true,
-      url: m.poster_url.replace('/w300','/w185'), tex: null, loading: false });
+    gondolaPlanes.push(plane);
+    texState.set('pick-slot-' + k, { mesh: plane, m: null, tint: 0x22222c, prio: true, url: '', tex: null, loading: false });
+  }
+  refreshGondola();
+}
+
+function tonightSet() {
+  try { return new Set(JSON.parse(localStorage.getItem('tonight') || '[]')); } catch(e) { return new Set(); }
+}
+function refreshGondola() {
+  const visible = movies.filter(m => m.hidden !== 'true' && m.poster_url);
+  const t = tonightSet();
+  let list = visible.filter(m => t.has(m.imdb_id));
+  if (!list.length) list = seededPicks(visible.filter(m => m.watched !== 'true'), 6);
+  list = list.slice(0, 6);
+  gondolaPlanes.forEach((plane, k) => {
+    const e = texState.get('pick-slot-' + k);
+    const m = list[k] || null;
+    if (!m) { plane.visible = false; e.m = null; e.url = ''; if (e.tex) { e.tex.dispose(); e.tex = null; } return; }
+    if (e.m && e.m.uid === m.uid && e.tex) { plane.visible = true; return; }
+    plane.visible = true;
+    plane.userData.m = m;
+    e.m = m; e.url = m.poster_url.replace('/w300','/w185');
+    e.failed = false; e.loading = false;
+    if (e.tex) { e.tex.dispose(); e.tex = null; }
+    plane.material.map = null; plane.material.color.set(0x22222c); plane.material.needsUpdate = true;
   });
+  streamTextures();
 }
 
 /* ── texture streaming (proximity + budget) ── */
 const texLoader = new THREE.TextureLoader();
 texLoader.setCrossOrigin('anonymous');
-const TEX_BUDGET = 340, LOAD_NEAR = 9, CONCURRENT = 10;
+const IS_TOUCH = 'ontouchstart' in window;
+const TEX_BUDGET = IS_TOUCH ? 340 : 2000, LOAD_NEAR = IS_TOUCH ? 9 : 60, CONCURRENT = 12;
 let inflight = 0;
 function applyTex(e, tex) {
+  tex.encoding = THREE.sRGBEncoding; // without this, sRGB output washes the covers out
   e.tex = tex;
   e.mesh.material.map = tex;
-  e.mesh.material.color.set(0xffffff);
+  e.mesh.material.color.set(0xe2e2e2);
   e.mesh.material.needsUpdate = true;
 }
 function streamTextures() {
@@ -584,7 +672,7 @@ function streamTextures() {
   const entries = [...texState.values()];
   for (const e of entries) {
     const dx = e.mesh.position.x - cx, dz = e.mesh.position.z - cz;
-    e.d2 = (dx*dx + dz*dz) * (e.prio ? 0.15 : 1); // display picks always win their spot
+    e.d2 = (!e.url) ? Infinity : (dx*dx + dz*dz) * (e.prio ? 0.15 : 1); // picks win; empty slots never load
   }
   entries.sort((a,b) => a.d2 - b.d2);
   // want-set: the nearest in-range entries, up to the budget
@@ -688,7 +776,7 @@ function movePlayer(dt) {
   nx = Math.max(-1.62 + r, Math.min(1.62 - r, nx));
   if (!blocked(nx, camera.position.z)) camera.position.x = nx;
   let nz = camera.position.z + dz;
-  nz = Math.max(-9.36 + r, Math.min(2.1 - r, nz));
+  nz = Math.max(-13.46 + r, Math.min(2.1 - r, nz));
   if (!blocked(camera.position.x, nz)) camera.position.z = nz;
 }
 
@@ -714,21 +802,22 @@ function updateHover() {
 /* ── flip-case overlay ── */
 const overlay = document.getElementById('pull-overlay');
 const inner = document.getElementById('pull-inner');
-async function fetchOverview(m) {
+async function fetchDetails(m) {
   if (overviewCache.has(m.uid)) return overviewCache.get(m.uid);
-  if (!/^tt\d{7,8}$/.test(m.imdb_id) || m.imdb_id === 'tt0000000') return '';
+  const none = { ov: '', score: null };
+  if (!/^tt\d{7,8}$/.test(m.imdb_id) || m.imdb_id === 'tt0000000') return none;
   try {
     const hdrs = { Authorization: `Bearer ${TMDB_TOKEN}` };
     const f = await fetch(`https://api.themoviedb.org/3/find/${m.imdb_id}?external_source=imdb_id`, { headers: hdrs }).then(r => r.json());
     const id0 = f.movie_results?.[0]?.id;
     const id = id0 || f.tv_results?.[0]?.id;
     const kind = id0 ? 'movie' : 'tv';
-    if (!id) return '';
+    if (!id) return none;
     const d = await fetch(`https://api.themoviedb.org/3/${kind}/${id}`, { headers: hdrs }).then(r => r.json());
-    const ov = d.overview || '';
-    overviewCache.set(m.uid, ov);
-    return ov;
-  } catch(e) { return ''; }
+    const det = { ov: d.overview || '', score: d.vote_average ? Math.round(d.vote_average * 10) : null };
+    overviewCache.set(m.uid, det);
+    return det;
+  } catch(e) { return none; }
 }
 async function openCase(m) {
   if (!m) return;
@@ -741,19 +830,35 @@ async function openCase(m) {
     : `<div class="no-art">${escHtml(m.title)}</div>`;
   const watched = m.watched === 'true';
   const actors = (m.actors || '').split('|').filter(a => a && a !== '-').join(', ');
+  const genres = (m.genre_ids || '').split('|').filter(Boolean).join(', ');
+  const inTonight = tonightSet().has(m.imdb_id);
   back.innerHTML = `
     <div class="watched-stamp ${watched ? 'stamp-yes' : 'stamp-no'}">${watched ? 'SEEN' : 'NOT SEEN'}</div>
     <h2>${escHtml(m.title)}</h2>
     ${m.title_da && m.title_da !== m.title ? `<div class="da-title">${escHtml(m.title_da)}</div>` : '<div class="da-title"></div>'}
     <div class="synopsis" id="pull-synopsis">Fetching the back-cover text…</div>
+    ${genres ? `<div class="meta-line"><b>Genre:</b> ${escHtml(genres)}</div>` : ''}
     ${m.director ? `<div class="meta-line"><b>Director:</b> ${escHtml(m.director)}</div>` : ''}
     ${actors ? `<div class="meta-line"><b>Starring:</b> ${escHtml(actors)}</div>` : ''}
-    <div class="meta-line"><b>${escHtml(m.year)}</b> · ${escHtml(m.format)}${m.runtime && m.runtime !== '0' ? ` · ${escHtml(m.runtime)} min` : ''}${m.box_set ? ` · From the box set: ${escHtml(m.box_set)}` : ''}</div>
+    <div class="meta-line"><b>${escHtml(m.year)}</b> · ${escHtml(m.format)}${m.runtime && m.runtime !== '0' ? ` · ${escHtml(m.runtime)} min` : ''}<span id="pull-score"></span>${m.box_set ? ` · From the box set: ${escHtml(m.box_set)}` : ''}</div>
+    <button class="tonight-btn ${inTonight ? 'on' : ''}" id="pull-tonight">${inTonight ? '★ ON TONIGHT\'S SHELF — TAP TO REMOVE' : '☆ ADD TO TONIGHT\'S PICKS'}</button>
     <div class="barcode"></div>`;
+  document.getElementById('pull-tonight').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const t = tonightSet();
+    if (t.has(m.imdb_id)) t.delete(m.imdb_id); else t.add(m.imdb_id);
+    localStorage.setItem('tonight', JSON.stringify([...t]));
+    const on = t.has(m.imdb_id);
+    ev.target.className = 'tonight-btn' + (on ? ' on' : '');
+    ev.target.textContent = on ? "★ ON TONIGHT'S SHELF — TAP TO REMOVE" : "☆ ADD TO TONIGHT'S PICKS";
+    refreshGondola();
+  });
   overlay.classList.add('open');
-  const ov = await fetchOverview(m);
+  const det = await fetchDetails(m);
   const syn = document.getElementById('pull-synopsis');
-  if (syn) syn.textContent = ov || 'The back-cover text has gone missing. Ask at the counter.';
+  if (syn) syn.textContent = det.ov || 'The back-cover text has gone missing. Ask at the counter.';
+  const sc = document.getElementById('pull-score');
+  if (sc && det.score !== null) sc.textContent = ` · TMDB ${det.score}%`;
 }
 inner.addEventListener('click', e => { if (e.target.id !== 'pull-close') inner.classList.toggle('flipped'); });
 document.getElementById('pull-close').addEventListener('click', () => overlay.classList.remove('open'));
