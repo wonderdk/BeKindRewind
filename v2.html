@@ -3,379 +3,98 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Be Kind, Rewind — Video Rental</title>
+<title>Be Kind, Rewind — Video Rental (3D)</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Permanent+Marker&display=swap" rel="stylesheet">
 <style>
 :root{
-  --room:#1c1410;        /* back-of-shop shadow */
-  --wood:#6b4a2c;        /* pine shelf */
-  --wood-dark:#4a3018;
-  --wood-edge:#8a6238;
-  --lamp:#e8d5a8;        /* tungsten glow */
-  --paper:#f2e8d0;       /* index cards */
-  --ink:#2b2118;
-  --sticker-red:#b3402a;
-  --sticker-yellow:#e9c832;
-  --felt:#2d4a3e;        /* worn carpet green */
+  --neon-core:#ffd9a8; --neon-glow:#ff7a00;
+  --text:#c9b79c; --text-dim:#7d6a52;
+  --sticker-yellow:#e9c832; --ink:#2b2118;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-@media (prefers-reduced-motion: reduce){
-  html{scroll-behavior:auto}
-  *{transition:none !important;animation:none !important}
+html,body{height:100%;overflow:hidden;background:#0d0906;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text)}
+#c{display:block;width:100%;height:100%}
+/* HUD */
+#loading{
+  position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:#0d0906;z-index:100;
 }
-body{
-  background:
-    radial-gradient(ellipse 120% 60% at 50% -10%, rgba(232,213,168,.10), transparent 60%),
-    linear-gradient(180deg, #241a12 0%, var(--room) 30%);
-  background-color:var(--room);
-  color:var(--paper);
-  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-  min-height:100vh;
+#loading .neon{
+  font-weight:700;letter-spacing:.16em;font-size:clamp(20px,4.5vw,38px);color:var(--neon-core);
+  text-shadow:0 0 4px #ffb054,0 0 14px #ff8a00,0 0 36px #ff6a00;
 }
-
-/* ── Storefront ── */
-.storefront{
-  text-align:center;
-  padding:46px 16px 22px;
-  position:relative;
+#loading .sub{font-size:12px;color:var(--text-dim);letter-spacing:.2em}
+#crosshair{
+  position:fixed;left:50%;top:50%;width:5px;height:5px;margin:-2px 0 0 -2px;border-radius:50%;
+  background:rgba(255,217,168,.85);box-shadow:0 0 6px rgba(255,140,40,.9);z-index:20;pointer-events:none;display:none;
 }
-.neon{
-  font-family:'Pacifico',cursive;
-  font-size:clamp(34px,7vw,64px);
-  color:#ffd9e8;
-  text-shadow:
-    0 0 6px #ff7ab8, 0 0 18px #ff4f9e, 0 0 42px #e0257c,
-    0 2px 0 rgba(0,0,0,.5);
-  line-height:1.1;
+#hover{
+  position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:20;pointer-events:none;display:none;
+  background:rgba(16,7,3,.85);border:1px solid #3a2413;border-radius:3px;padding:7px 14px;
+  font-size:13px;color:#e8dcc4;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;
 }
-.neon-sub{
-  display:inline-block;
-  margin-top:10px;
-  font-family:'Permanent Marker',cursive;
-  font-size:13px;
-  letter-spacing:.45em;
-  text-indent:.45em;
-  color:#9fe8ff;
-  text-shadow:0 0 5px #37c4f0, 0 0 16px #1493c4;
+#hover .dim{color:var(--text-dim);font-size:11px}
+#hint{
+  position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:20;pointer-events:none;
+  font-size:11px;letter-spacing:.06em;color:var(--text-dim);
+  background:rgba(13,9,6,.7);padding:5px 12px;border-radius:3px;white-space:nowrap;
 }
-.hours-card{
-  display:inline-block;
-  margin-top:22px;
-  background:var(--paper);
-  color:var(--ink);
-  font-family:'Permanent Marker',cursive;
-  font-size:12px;
-  padding:8px 16px 9px;
-  transform:rotate(-1.6deg);
-  box-shadow:0 3px 8px rgba(0,0,0,.5);
-  position:relative;
+#topbar{position:fixed;top:12px;left:12px;z-index:20;display:flex;gap:8px}
+.hud-link{
+  background:rgba(20,10,4,.8);border:1px solid #3a2413;color:#ffc07a;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  padding:7px 12px;text-decoration:none;border-radius:2px;
+  text-shadow:0 0 8px rgba(255,130,20,.6);
 }
-.hours-card::before{ /* tape */
-  content:'';
-  position:absolute;top:-8px;left:50%;transform:translateX(-50%) rotate(2deg);
-  width:52px;height:14px;background:rgba(255,255,240,.28);
-  border-left:1px dashed rgba(0,0,0,.12);border-right:1px dashed rgba(0,0,0,.12);
+.hud-link:hover{border-color:#6b4326}
+/* touch controls */
+#touch{position:fixed;bottom:18px;left:18px;z-index:20;display:none;gap:10px}
+.tbtn{
+  width:56px;height:56px;border-radius:50%;border:1px solid #3a2413;background:rgba(20,10,4,.75);
+  color:#ffc07a;font-size:20px;line-height:1;user-select:none;-webkit-user-select:none;touch-action:none;
 }
-.back-link{
-  position:absolute;top:14px;left:14px;
-  background:var(--paper);color:var(--ink);
-  font-family:'Permanent Marker',cursive;font-size:11px;
-  padding:6px 10px;text-decoration:none;
-  transform:rotate(-2deg);
-  box-shadow:0 2px 6px rgba(0,0,0,.5);
-}
-.back-link:hover{transform:rotate(0deg)}
-
-/* ── Counter: search ── */
-.counter{
-  max-width:520px;margin:26px auto 8px;padding:0 16px;
-}
-.search-card{
-  background:var(--paper);
-  padding:12px 14px 14px;
-  transform:rotate(.6deg);
-  box-shadow:0 4px 10px rgba(0,0,0,.55);
-}
-.search-card label{
-  display:block;
-  font-family:'Permanent Marker',cursive;
-  color:var(--ink);font-size:12px;margin-bottom:6px;
-}
-.search-card input{
-  width:100%;
-  background:#fffdf4;
-  border:1px solid #b9ab8a;
-  border-radius:2px;
-  padding:9px 12px;
-  font-size:15px;
-  color:var(--ink);
-  outline:none;
-  background-image:repeating-linear-gradient(180deg, transparent, transparent 26px, rgba(179,64,42,.15) 27px);
-}
-.search-card input:focus{border-color:var(--sticker-red)}
-
-/* ── Aisle sign nav ── */
-.aisle-nav{
-  position:sticky;top:0;z-index:50;
-  display:flex;gap:10px;
-  overflow-x:auto;
-  padding:14px 16px 10px;
-  background:linear-gradient(180deg, rgba(28,20,16,.96) 70%, transparent);
-  scrollbar-width:none;
-}
-.aisle-nav::-webkit-scrollbar{display:none}
-.aisle-sign{
-  flex:0 0 auto;
-  font-family:'Permanent Marker',cursive;
-  font-size:13px;
-  color:var(--ink);
-  background:var(--sticker-yellow);
-  padding:7px 14px 8px;
-  text-decoration:none;
-  box-shadow:0 3px 6px rgba(0,0,0,.5);
-  transform:rotate(-1.2deg);
-  white-space:nowrap;
-}
-.aisle-sign:nth-child(2n){background:#f0913e;transform:rotate(1.1deg)}
-.aisle-sign:nth-child(3n){background:#e86a8a;transform:rotate(-.7deg)}
-.aisle-sign:hover{filter:brightness(1.08)}
-.aisle-sign .count{font-size:10px;opacity:.65;margin-left:5px}
-
-/* ── Shelf sections ── */
-.aisle{max-width:1200px;margin:0 auto;padding:34px 16px 8px}
-.aisle-header{display:flex;align-items:baseline;gap:14px;margin-bottom:18px}
-.aisle-title{
-  font-family:'Permanent Marker',cursive;
-  font-size:clamp(20px,3.4vw,28px);
-  color:var(--lamp);
-  text-shadow:0 0 22px rgba(232,213,168,.35);
-}
-.aisle-count{font-size:12px;color:#8a7a60}
-.shelf-unit{
-  border-radius:4px;
-  padding:0 10px;
-  background:
-    linear-gradient(90deg, rgba(0,0,0,.45), transparent 6%, transparent 94%, rgba(0,0,0,.45)),
-    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(232,213,168,.13), transparent 70%),
-    linear-gradient(180deg, #2a1d12, #221709);
-  box-shadow:inset 0 0 40px rgba(0,0,0,.6), 0 6px 18px rgba(0,0,0,.5);
-  border:1px solid #3a2a18;
-}
-.shelf-row{
-  display:flex;gap:14px;
-  overflow-x:auto;
-  padding:26px 14px 0;
-  /* the wood board the cases stand on */
-  border-bottom:14px solid var(--wood);
-  border-image:linear-gradient(180deg, var(--wood-edge), var(--wood) 30%, var(--wood-dark)) 1;
-  scrollbar-width:thin;
-  scrollbar-color:var(--wood-dark) transparent;
-}
-.shelf-row:last-child{margin-bottom:0}
-
-/* ── Cases ── */
-.case{
-  flex:0 0 auto;
-  width:118px;
-  cursor:pointer;
-  position:relative;
-  transition:transform .18s ease;
-  transform-origin:bottom center;
-  background:none;border:none;padding:0;text-align:left;
-}
-.case:hover,.case:focus-visible{transform:translateY(-8px) rotate(-1deg)}
-.case:focus-visible{outline:2px solid var(--sticker-yellow);outline-offset:3px}
-.case-art{
-  width:118px;height:177px;
-  border-radius:2px 4px 4px 2px;
-  position:relative;
-  overflow:hidden;
-  background:linear-gradient(160deg,#3a3a4a,#20202c);
-  box-shadow:2px 4px 8px rgba(0,0,0,.65);
-  border-left:5px solid #111; /* spine */
-}
-.case-art.f-DVD{border-left-color:#3f3f46}
-.case-art.f-Blu-ray{border-left-color:#1f5fd6}
-.case-art.f-4KUltraHD{border-left-color:#000}
-.case-art.f-VHS{border-left-color:#0a0a0a;border-left-width:8px}
-.case-art img{width:100%;height:100%;object-fit:cover;display:block}
-.case-art .no-art{
-  position:absolute;inset:0;
-  display:flex;align-items:center;justify-content:center;
-  padding:10px;text-align:center;
-  font-family:'Permanent Marker',cursive;
-  font-size:12px;color:var(--paper);
-}
-.case-art::after{ /* plastic sheen */
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(115deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.04) 22%, transparent 40%);
-  pointer-events:none;
-}
-.sticker{
-  position:absolute;top:6px;right:6px;
-  width:38px;height:38px;border-radius:50%;
-  background:var(--sticker-yellow);
-  color:var(--ink);
-  font-family:'Permanent Marker',cursive;
-  font-size:8px;line-height:1.1;
-  display:flex;align-items:center;justify-content:center;text-align:center;
-  transform:rotate(-14deg);
-  box-shadow:0 1px 3px rgba(0,0,0,.5);
-  z-index:2;
-}
-.case-label{
-  margin-top:6px;
-  font-size:10.5px;line-height:1.3;color:#cbbfa4;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-}
-.case-year{font-size:9.5px;color:#7a6c52}
-
-/* ── Staff picks corkboard ── */
-.cork{
-  background:
-    radial-gradient(circle at 20% 30%, rgba(0,0,0,.12) 1px, transparent 2px),
-    radial-gradient(circle at 70% 60%, rgba(0,0,0,.10) 1px, transparent 2px),
-    linear-gradient(180deg,#9a713f,#845d31);
-  background-size:60px 60px, 90px 90px, 100% 100%;
-  border:10px solid var(--wood-dark);
-  border-radius:4px;
-  box-shadow:inset 0 0 30px rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.5);
-  padding:20px 14px 24px;
-}
-.cork-note{
-  background:var(--paper);color:var(--ink);
-  font-family:'Permanent Marker',cursive;font-size:13px;
-  display:inline-block;padding:8px 14px;
-  transform:rotate(-2deg);
-  box-shadow:0 3px 6px rgba(0,0,0,.4);
-  margin:0 14px 16px;
-  position:relative;
-}
-.cork-note::before{
-  content:'';position:absolute;top:-6px;left:18px;
-  width:10px;height:10px;border-radius:50%;
-  background:radial-gradient(circle at 35% 35%, #ff7a7a, #a41212);
-  box-shadow:0 2px 3px rgba(0,0,0,.5);
-}
-
-/* ── Pulled-out case (modal) ── */
-.pull-overlay{
-  position:fixed;inset:0;z-index:200;
-  background:rgba(10,7,5,.82);
-  display:none;align-items:center;justify-content:center;
-  padding:20px;
-}
+/* pulled-out case overlay (same as the 2D store) */
+.pull-overlay{position:fixed;inset:0;z-index:200;background:rgba(6,3,2,.88);display:none;align-items:center;justify-content:center;padding:20px}
 .pull-overlay.open{display:flex}
-.pull-case{
-  width:min(320px,86vw);
-  perspective:1200px;
-}
-.pull-inner{
-  position:relative;width:100%;
-  transform-style:preserve-3d;
-  transition:transform .55s cubic-bezier(.4,1.4,.6,1);
-}
+.pull-case{width:min(320px,86vw);perspective:1200px}
+.pull-inner{position:relative;width:100%;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.4,1.4,.6,1)}
 .pull-inner.flipped{transform:rotateY(180deg)}
-.pull-face{
-  backface-visibility:hidden;-webkit-backface-visibility:hidden;
-  border-radius:3px 6px 6px 3px;
-  box-shadow:0 18px 50px rgba(0,0,0,.8);
-}
+@media (prefers-reduced-motion: reduce){.pull-inner{transition:none}}
+.pull-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:3px 6px 6px 3px;box-shadow:0 18px 60px rgba(0,0,0,.9),0 0 80px rgba(255,110,0,.08)}
 .pull-front{position:relative}
-.pull-front img{width:100%;display:block;border-radius:3px 6px 6px 3px;aspect-ratio:2/3;object-fit:cover;background:#20202c}
-.pull-front .no-art{
-  aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;
-  padding:20px;text-align:center;
-  font-family:'Permanent Marker',cursive;font-size:20px;color:var(--paper);
-  background:linear-gradient(160deg,#3a3a4a,#20202c);
-  border-radius:3px 6px 6px 3px;
-}
-.pull-back{
-  position:absolute;inset:0;
-  transform:rotateY(180deg);
-  background:linear-gradient(170deg,#241d16,#171310);
-  border:1px solid #3a2f22;
-  color:#d8ccb2;
-  padding:16px 16px 14px;
-  font-size:12px;line-height:1.55;
-  display:flex;flex-direction:column;
-  overflow:hidden;
-}
-.pull-back h2{
-  font-size:15px;color:var(--lamp);margin-bottom:2px;line-height:1.25;
-  font-weight:700;
-}
-.pull-back .da-title{font-style:italic;color:#9a8b6c;font-size:11px;margin-bottom:8px}
-.pull-back .synopsis{
-  flex:1;overflow-y:auto;margin-bottom:10px;
-  color:#cbbfa4;
-}
-.pull-back .meta-line{font-size:10.5px;color:#8a7a60;margin-bottom:3px}
-.pull-back .meta-line b{color:#b8a988;font-weight:600}
-.watched-stamp{
-  position:absolute;top:12px;right:12px;
-  border:2px solid;
-  border-radius:3px;
-  font-family:'Permanent Marker',cursive;
-  font-size:11px;
-  padding:2px 7px;
-  transform:rotate(9deg);
-  opacity:.9;
-}
+.pull-front img{width:100%;display:block;border-radius:3px 6px 6px 3px;aspect-ratio:2/3;object-fit:cover;background:#17171f}
+.pull-front .no-art{aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;font-size:18px;color:var(--text);background:linear-gradient(160deg,#2a2a36,#17171f);border-radius:3px 6px 6px 3px}
+.pull-back{position:absolute;inset:0;transform:rotateY(180deg);background:linear-gradient(170deg,#1d1510,#110c08);border:1px solid #35251a;color:#cfc0a4;padding:16px 16px 14px;font-size:12px;line-height:1.55;display:flex;flex-direction:column;overflow:hidden}
+.pull-back h2{font-size:15px;color:var(--neon-core);margin-bottom:2px;line-height:1.25;font-weight:700;text-shadow:0 0 10px rgba(255,120,20,.35)}
+.pull-back .da-title{font-style:italic;color:#8f7a5c;font-size:11px;margin-bottom:8px}
+.pull-back .synopsis{flex:1;overflow-y:auto;margin-bottom:10px;color:#bfae92}
+.pull-back .meta-line{font-size:10.5px;color:#8a7458;margin-bottom:3px}
+.pull-back .meta-line b{color:#c2a87f;font-weight:600}
+.watched-stamp{position:absolute;top:12px;right:12px;border:2px solid;border-radius:3px;font-size:11px;padding:2px 7px;transform:rotate(9deg);opacity:.9}
 .stamp-yes{color:#7ec98a;border-color:#7ec98a}
 .stamp-no{color:var(--sticker-yellow);border-color:var(--sticker-yellow)}
-.barcode{
-  height:26px;margin-top:auto;
-  background:repeating-linear-gradient(90deg,#d8ccb2 0 2px,transparent 2px 4px,#d8ccb2 4px 7px,transparent 7px 9px,#d8ccb2 9px 10px,transparent 10px 14px);
-  opacity:.75;
-}
-.pull-hint{
-  text-align:center;margin-top:14px;
-  font-family:'Permanent Marker',cursive;
-  font-size:12px;color:#b8a988;
-}
-.pull-close{
-  position:absolute;top:-14px;right:-14px;z-index:5;
-  width:34px;height:34px;border-radius:50%;
-  background:var(--sticker-red);color:var(--paper);
-  border:none;font-size:17px;line-height:1;cursor:pointer;
-  box-shadow:0 3px 8px rgba(0,0,0,.6);
-}
-
-/* ── Footer ── */
-.shop-footer{
-  text-align:center;padding:50px 16px 60px;
-  font-family:'Permanent Marker',cursive;
-  color:#6b5c44;font-size:13px;
-}
-.empty-note{color:#8a7a60;font-size:13px;padding:8px 14px 30px;font-style:italic}
+.barcode{height:26px;margin-top:auto;opacity:.7;background:repeating-linear-gradient(90deg,#cfc0a4 0 2px,transparent 2px 4px,#cfc0a4 4px 7px,transparent 7px 9px,#cfc0a4 9px 10px,transparent 10px 14px)}
+.pull-hint{text-align:center;margin-top:14px;font-size:12px;color:#a98c62}
+.pull-close{position:absolute;top:-14px;right:-14px;z-index:5;width:34px;height:34px;border-radius:50%;background:#b3402a;color:#f2e8d0;border:none;font-size:17px;line-height:1;cursor:pointer;box-shadow:0 3px 9px rgba(0,0,0,.7)}
+#fatal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0d0906;z-index:150;padding:24px;text-align:center;line-height:1.7}
 </style>
 </head>
 <body>
+<canvas id="c"></canvas>
 
-<header class="storefront">
-  <a class="back-link" href="index.html">← To the collection</a>
-  <div class="neon">Be Kind, Rewind</div>
-  <div class="neon-sub">VIDEO RENTAL</div>
-  <br>
-  <div class="hours-card">OPEN EVERY DAY 3–10 PM · NEW FILMS EVERY FRIDAY</div>
-</header>
-
-<div class="counter">
-  <div class="search-card">
-    <label for="q">Looking for something? Ask at the counter:</label>
-    <input id="q" type="text" placeholder="Title, director or actor…" autocomplete="off">
-  </div>
+<div id="loading"><div class="neon">VIDEO RENTAL</div><div class="sub">OPENING THE STORE…</div></div>
+<div id="fatal"></div>
+<div id="crosshair"></div>
+<div id="hover"></div>
+<div id="hint">Click to enter · WASD move · mouse look · click a cover to pull it · Esc to release</div>
+<div id="topbar">
+  <a class="hud-link" href="index.html">← Collection</a>
+  <a class="hud-link" href="store.html">2D store</a>
 </div>
-
-<nav class="aisle-nav" id="aisle-nav"></nav>
-<main id="store"></main>
-
-<footer class="shop-footer">Don't forget to rewind.</footer>
+<div id="touch">
+  <button class="tbtn" id="t-fwd">▲</button>
+  <button class="tbtn" id="t-back">▼</button>
+</div>
 
 <div class="pull-overlay" id="pull-overlay">
   <div class="pull-case">
@@ -384,45 +103,37 @@ body{
       <div class="pull-face pull-front" id="pull-front"></div>
       <div class="pull-face pull-back" id="pull-back"></div>
     </div>
-    <div class="pull-hint" id="pull-hint">Click the cover to turn the case over</div>
+    <div class="pull-hint">Click the cover to turn the case over</div>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const CSV_URL = 'https://raw.githubusercontent.com/wonderdk/bekindrewind/main/movies.csv';
 const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxZTY3N2ZiMTVjMGM4ZDBkNTMzNjQzMGYxNmNlOTFmMiIsIm5iZiI6MTc3NjQxMjk3Mi4zMDIsInN1YiI6IjY5ZTFlOTJjNmJlM2VmOWRmZThiN2I1MCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.LmxBN4pTZr1OsghaHWA2LkbrqJrGNqftKmyQ1ZUNOQA';
 
-/* Section definitions. A film lands in exactly ONE section: the first whose
-   genre set intersects the film's genres. Order encodes shop logic:
-   the gysere never end up on the children's shelf. */
 const SECTIONS = [
-  { id:'horror',   label:'Horror',            genres:['Horror'] },
-  { id:'scifi',    label:'Science Fiction',   genres:['Sci-Fi','Science Fiction'] },
-  { id:'crime',    label:'Crime',             genres:['Crime'] },
-  { id:'thriller', label:'Thriller',          genres:['Thriller','Mystery'] },
-  { id:'action',   label:'Action',            genres:['Action','War','Western'] },
-  { id:'fantasy',  label:'Fantasy & Adventure', genres:['Fantasy','Adventure'] },
-  { id:'kids',     label:'Animation & Kids',  genres:['Animation','Family'] },
-  { id:'comedy',   label:'Comedy',            genres:['Comedy','Music'] },
-  { id:'drama',    label:'Drama',             genres:['Drama','Romance','History','Documentary'] },
-  { id:'misc',     label:'Miscellaneous',     genres:[] } /* catch-all */
+  { id:'horror',   label:'HORROR',              genres:['Horror'],                            tint:0x5a1c1c },
+  { id:'scifi',    label:'SCIENCE FICTION',     genres:['Sci-Fi','Science Fiction'],          tint:0x24384a },
+  { id:'crime',    label:'CRIME',               genres:['Crime'],                             tint:0x3a3020 },
+  { id:'thriller', label:'THRILLER',            genres:['Thriller','Mystery'],                tint:0x2c2436 },
+  { id:'action',   label:'ACTION',              genres:['Action','War','Western'],            tint:0x4a2a16 },
+  { id:'fantasy',  label:'FANTASY & ADVENTURE', genres:['Fantasy','Adventure'],               tint:0x2a3a28 },
+  { id:'kids',     label:'ANIMATION & KIDS',    genres:['Animation','Family'],                tint:0x3d3218 },
+  { id:'comedy',   label:'COMEDY',              genres:['Comedy','Music'],                    tint:0x453a1a },
+  { id:'drama',    label:'DRAMA',               genres:['Drama','Romance','History','Documentary'], tint:0x33261e },
+  { id:'misc',     label:'MISC',                genres:[],                                    tint:0x2a2a2a }
 ];
 
-let movies = [];
-const overviewCache = new Map();
-
+/* ── shared helpers (same behavior as the 2D store) ── */
 function parseCSV(text) {
   const rows = [];
   const lines = text.trim().split('\n');
   const parseLine = (line) => {
-    const vals = [];
-    let cur = '', inQ = false;
+    const vals = []; let cur = '', inQ = false;
     for (let j = 0; j < line.length; j++) {
       const c = line[j];
-      if (c === '"') {
-        if (inQ && line[j+1] === '"') { cur += '"'; j++; continue; }
-        inQ = !inQ; continue;
-      }
+      if (c === '"') { if (inQ && line[j+1] === '"') { cur += '"'; j++; continue; } inQ = !inQ; continue; }
       if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
       cur += c;
     }
@@ -440,133 +151,428 @@ function parseCSV(text) {
   }
   return rows;
 }
-
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function fmtClass(f) { return 'f-' + String(f || '').replace(/\s+/g,''); }
-
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function sectionFor(m) {
   const genres = (m.genre_ids || '').split('|').map(g => g.trim()).filter(Boolean);
-  for (const s of SECTIONS) {
-    if (s.genres.some(g => genres.includes(g))) return s.id;
-  }
-  return 'misc';
+  for (const s of SECTIONS) if (s.genres.some(g => genres.includes(g))) return s;
+  return SECTIONS[SECTIONS.length - 1];
 }
-
-/* Date-seeded shuffle so staff picks rotate daily but stay stable within a day */
 function seededPicks(pool, n) {
   const d = new Date();
-  let seed = d.getFullYear() * 10000 + (d.getMonth()+1) * 100 + d.getDate();
-  const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  let seed = d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+  const rand = () => { seed = (seed*9301+49297)%233280; return seed/233280; };
   const arr = pool.slice();
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
+  for (let i = arr.length-1; i > 0; i--) { const j = Math.floor(rand()*(i+1)); [arr[i],arr[j]] = [arr[j],arr[i]]; }
   return arr.slice(0, n);
 }
 
-function caseHtml(m) {
-  const art = m.poster_url
-    ? `<img src="${escHtml(m.poster_url)}" alt="" loading="lazy" onerror="this.style.display='none'">
-       <div class="no-art" style="z-index:-1">${escHtml(m.title)}</div>`
-    : `<div class="no-art">${escHtml(m.title)}</div>`;
-  const sticker = m.watched === 'true' ? '' : '<div class="sticker">NOT<br>SEEN</div>';
-  return `
-    <button class="case" data-uid="${escHtml(m.uid)}">
-      <div class="case-art ${fmtClass(m.format)}">
-        ${sticker}
-        ${art}
-      </div>
-      <div class="case-label">${escHtml(m.title)}</div>
-      <div class="case-year">${escHtml(m.year)} · ${escHtml(m.format)}</div>
-    </button>`;
+/* ── shelf slot layout (pure math, no THREE) ──
+   Room: x in [-7,7], z in [-13,4]. Back wall holds the neon.
+   Faces are filled in walking order; each returns slot positions. */
+const LEVELS = [0.38, 0.97, 1.56, 2.15];
+const SLOT = 0.165;
+function buildFaces() {
+  // {x0,z0: first slot; dx,dz: advance per slot; rotY: facing; len: run length}
+  return [
+    { name:'westWall', x0:-6.70, z0: 2.60, dx:0, dz:-SLOT, rotY: Math.PI/2,  len:15.0 },
+    { name:'A-west',   x0:-2.92, z0: 0.60, dx:0, dz:-SLOT, rotY:-Math.PI/2, len:12.0 },
+    { name:'A-east',   x0:-2.28, z0: 0.60, dx:0, dz:-SLOT, rotY: Math.PI/2,  len:12.0 },
+    { name:'B-west',   x0: 2.28, z0: 0.60, dx:0, dz:-SLOT, rotY:-Math.PI/2, len:12.0 },
+    { name:'B-east',   x0: 2.92, z0: 0.60, dx:0, dz:-SLOT, rotY: Math.PI/2,  len:12.0 },
+    { name:'eastWall', x0: 6.70, z0: 2.60, dx:0, dz:-SLOT, rotY:-Math.PI/2, len:15.0 },
+    { name:'backWall', x0:-6.20, z0:-12.72, dx:SLOT, dz:0, rotY:0,           len:12.4 }
+  ];
 }
-
-function shelfRows(list) {
-  /* fixed rows of a shelf unit; each row scrolls sideways like walking past it */
-  const perRow = 24;
-  let html = '';
-  for (let i = 0; i < list.length; i += perRow) {
-    html += `<div class="shelf-row">${list.slice(i, i + perRow).map(caseHtml).join('')}</div>`;
+function assignSlots(bySection) {
+  const faces = buildFaces();
+  const placements = [], signs = [];
+  let f = 0, level = 0, i = 0;
+  const perFace = faces.map(fc => Math.floor(fc.len / SLOT));
+  const nextSlot = () => {
+    while (f < faces.length) {
+      if (i < perFace[f]) {
+        const fc = faces[f];
+        const slot = { x: fc.x0 + fc.dx*i, z: fc.z0 + fc.dz*i, y: LEVELS[level], rotY: fc.rotY, face: fc.name };
+        // advance: fill a whole level along the face, then next level, then next face
+        i++;
+        if (i >= perFace[f]) { i = 0; level++; if (level >= LEVELS.length) { level = 0; f++; } }
+        return slot;
+      }
+      i = 0; level = 0; f++;
+    }
+    return null;
+  };
+  for (const sec of SECTIONS) {
+    const films = bySection[sec.id] || [];
+    if (!films.length) continue;
+    let first = true;
+    for (const m of films) {
+      const slot = nextSlot();
+      if (!slot) return { placements, signs, overflow: true };
+      if (first) { signs.push({ label: sec.label, x: slot.x, z: slot.z, rotY: slot.rotY }); first = false; }
+      placements.push({ m, sec, ...slot });
+    }
   }
-  return html;
+  return { placements, signs, overflow: false };
 }
 
-function render(filter) {
-  const q = (filter || '').toLowerCase().trim();
-  const match = (m) => !q
-    || m.title.toLowerCase().includes(q)
-    || (m.title_da || '').toLowerCase().includes(q)
-    || (m.director || '').toLowerCase().includes(q)
-    || (m.actors || '').toLowerCase().includes(q);
+/* ── canvas textures: neon sign, section signs, carpet, taped note ── */
+function neonCanvas(text, sub) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 300;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(10,5,2,0.001)'; x.fillRect(0,0,c.width,c.height);
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = '700 118px Arial Narrow, Arial, sans-serif';
+  for (const [blur, col] of [[70,'rgba(255,90,0,.85)'],[34,'#ff6a00'],[14,'#ff8a00']]) {
+    x.shadowColor = col; x.shadowBlur = blur; x.fillStyle = '#ffd9a8';
+    x.fillText(text, c.width/2, 128);
+  }
+  x.shadowBlur = 0; x.fillStyle = '#ffe9c8'; x.fillText(text, c.width/2, 128);
+  if (sub) {
+    x.font = '600 34px Arial, sans-serif';
+    x.shadowColor = '#ff8a00'; x.shadowBlur = 16; x.fillStyle = '#e0a35f';
+    x.fillText(sub, c.width/2, 236);
+    x.shadowBlur = 0;
+  }
+  return c;
+}
+function signCanvas(text) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#140b05'; x.fillRect(0,0,c.width,c.height);
+  x.strokeStyle = '#3a2413'; x.lineWidth = 6; x.strokeRect(3,3,c.width-6,c.height-6);
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  let size = 54;
+  x.font = `600 ${size}px Arial Narrow, Arial, sans-serif`;
+  while (x.measureText(text).width > 460 && size > 26) { size -= 4; x.font = `600 ${size}px Arial Narrow, Arial, sans-serif`; }
+  x.shadowColor = '#ff8a00'; x.shadowBlur = 22; x.fillStyle = '#ffd9a8';
+  x.fillText(text, c.width/2, c.height/2 + 2);
+  x.shadowBlur = 8; x.fillText(text, c.width/2, c.height/2 + 2);
+  return c;
+}
+function noteCanvas(text) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 96;
+  const x = c.getContext('2d');
+  x.fillStyle = '#e9c832'; x.fillRect(0,0,c.width,c.height);
+  x.fillStyle = '#2b2118'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = 'italic 700 26px Comic Sans MS, cursive, sans-serif';
+  x.fillText(text, c.width/2, c.height/2);
+  return c;
+}
+function carpetCanvas() {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const x = c.getContext('2d');
+  x.fillStyle = '#3a1013'; x.fillRect(0,0,256,256);
+  for (let i = 0; i < 2600; i++) {
+    const v = Math.random();
+    x.fillStyle = v < .5 ? 'rgba(0,0,0,.22)' : 'rgba(120,40,40,.18)';
+    x.fillRect(Math.random()*256, Math.random()*256, 2, 2);
+  }
+  return c;
+}
 
-  const visible = movies.filter(m => m.hidden !== 'true' && match(m));
+/* ── the store ── */
+let renderer, scene, camera, movies = [];
+const posterMeshes = [];
+const colliders = []; // {minX,maxX,minZ,maxZ}
+const texState = new Map(); // uid -> {mesh, url, tex|null, loading}
+const overviewCache = new Map();
+let locked = false, yaw = Math.PI, pitch = 0;
+const keys = {};
+let touchFwd = 0;
 
-  const buckets = {};
-  SECTIONS.forEach(s => buckets[s.id] = []);
-  visible.forEach(m => buckets[sectionFor(m)].push(m));
-  SECTIONS.forEach(s => buckets[s.id].sort((a,b) => a.title.localeCompare(b.title)));
+function fail(msg) {
+  document.getElementById('loading').style.display = 'none';
+  const f = document.getElementById('fatal');
+  f.style.display = 'flex';
+  f.innerHTML = msg + '<br><br><a class="hud-link" href="store.html">Go to the 2D store</a>';
+}
 
-  const store = document.getElementById('store');
-  const nav = document.getElementById('aisle-nav');
-  let storeHtml = '';
-  let navHtml = '';
+function box(w,h,d,color,x,y,z,emissive) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshLambertMaterial({ color, emissive: emissive || 0x000000 }));
+  m.position.set(x,y,z); scene.add(m); return m;
+}
+function addCollider(minX,maxX,minZ,maxZ){ colliders.push({minX,maxX,minZ,maxZ}); }
 
-  /* New arrivals: highest uids, only when not searching */
-  if (!q) {
-    const newest = movies.filter(m => m.hidden !== 'true')
-      .slice().sort((a,b) => (parseInt(b.uid)||0) - (parseInt(a.uid)||0)).slice(0, 12);
-    storeHtml += `
-      <section class="aisle" id="sec-nyheder">
-        <div class="aisle-header"><h2 class="aisle-title">New on the shelf</h2></div>
-        <div class="shelf-unit">${shelfRows(newest)}</div>
-      </section>`;
-    navHtml += `<a class="aisle-sign" href="#sec-nyheder">New arrivals</a>`;
+function buildRoom() {
+  scene.background = new THREE.Color(0x0d0906);
+  scene.fog = new THREE.Fog(0x0d0906, 7, 26);
 
-    const unwatchedPool = movies.filter(m => m.hidden !== 'true' && m.watched !== 'true' && m.poster_url);
-    const picks = seededPicks(unwatchedPool, 6);
-    if (picks.length) {
-      storeHtml += `
-        <section class="aisle" id="sec-picks">
-          <div class="aisle-header"><h2 class="aisle-title">Staff picks for tonight</h2></div>
-          <div class="cork">
-            <div class="cork-note">None of these have been in the machine yet. Changes daily!</div>
-            <div class="shelf-row" style="border-bottom:none;padding-top:4px">${picks.map(caseHtml).join('')}</div>
-          </div>
-        </section>`;
-      navHtml += `<a class="aisle-sign" href="#sec-picks">Staff picks</a>`;
+  // carpet
+  const carpetTex = new THREE.CanvasTexture(carpetCanvas());
+  carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping; carpetTex.repeat.set(10, 12);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 17), new THREE.MeshLambertMaterial({ map: carpetTex }));
+  floor.rotation.x = -Math.PI/2; floor.position.set(0, 0, -4.5); scene.add(floor);
+
+  // ceiling + walls
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(14, 17), new THREE.MeshLambertMaterial({ color: 0x14100b }));
+  ceil.rotation.x = Math.PI/2; ceil.position.set(0, 3.1, -4.5); scene.add(ceil);
+  const wallMat = new THREE.MeshLambertMaterial({ color: 0x171009 });
+  const mkWall = (w,h,x,y,z,ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), wallMat); m.position.set(x,y,z); m.rotation.y = ry; scene.add(m); };
+  mkWall(14, 3.1,  0, 1.55, -13, 0);            // back
+  mkWall(14, 3.1,  0, 1.55,   4, Math.PI);      // front
+  mkWall(17, 3.1, -7, 1.55, -4.5,  Math.PI/2);  // west
+  mkWall(17, 3.1,  7, 1.55, -4.5, -Math.PI/2);  // east
+
+  // shelf carcasses (dark wood boxes behind the case faces)
+  const woodDark = 0x1b110a;
+  box(0.4, 2.6, 15.6, woodDark, -6.9, 1.3, -4.9);  addCollider(-7.2,-6.55, -12.8, 3.0);
+  box(0.4, 2.6, 15.6, woodDark,  6.9, 1.3, -4.9);  addCollider( 6.55, 7.2, -12.8, 3.0);
+  box(13.0, 2.6, 0.4, woodDark,  0,  1.3, -12.9);  addCollider(-6.6, 6.6, -13.2, -12.55);
+  box(0.6, 2.6, 12.4, woodDark, -2.6, 1.3, -5.4);  addCollider(-3.05,-2.15, -11.75, 0.95);
+  box(0.6, 2.6, 12.4, woodDark,  2.6, 1.3, -5.4);  addCollider( 2.15, 3.05, -11.75, 0.95);
+  // shelf boards (visual lines at each level)
+  const boardMat = new THREE.MeshLambertMaterial({ color: 0x2a1a0e });
+  const addBoards = (x, z, w, d) => { for (const y of [...LEVELS, 2.72]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, d), boardMat); b.position.set(x, y - 0.03, z); scene.add(b); } };
+  addBoards(-6.68, -4.9, 0.28, 15.4);
+  addBoards( 6.68, -4.9, 0.28, 15.4);
+  addBoards(-2.6, -5.4, 0.72, 12.2);
+  addBoards( 2.6, -5.4, 0.72, 12.2);
+  addBoards( 0, -12.68, 12.9, 0.28);
+
+  // fluorescent tubes + cool lights down the aisles
+  const tubeMat = new THREE.MeshLambertMaterial({ color: 0xe9f2f4, emissive: 0xdfeef2 });
+  const tubeGeo = new THREE.BoxGeometry(0.08, 0.04, 1.4);
+  for (const tx of [-4.8, 0, 4.8]) {
+    for (const tz of [-10.5, -6, -1.5, 2.5]) {
+      const t = new THREE.Mesh(tubeGeo, tubeMat); t.position.set(tx, 3.02, tz); scene.add(t);
+      const fixture = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 1.5), new THREE.MeshLambertMaterial({ color: 0x241a12 }));
+      fixture.position.set(tx, 3.06, tz); scene.add(fixture);
+      const pl = new THREE.PointLight(0xdfeef2, 0.42, 6.5); pl.position.set(tx, 2.85, tz); scene.add(pl);
     }
   }
 
-  for (const s of SECTIONS) {
-    const list = buckets[s.id];
-    if (!list.length) continue;
-    navHtml += `<a class="aisle-sign" href="#sec-${s.id}">${s.label}<span class="count">${list.length}</span></a>`;
-    storeHtml += `
-      <section class="aisle" id="sec-${s.id}">
-        <div class="aisle-header">
-          <h2 class="aisle-title">${s.label}</h2>
-          <span class="aisle-count">${list.length} films</span>
-        </div>
-        <div class="shelf-unit">${shelfRows(list)}</div>
-      </section>`;
-  }
+  // neon sign on the back wall + orange spill
+  const neonTex = new THREE.CanvasTexture(neonCanvas('VIDEO RENTAL', 'BE KIND, REWIND'));
+  const neon = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.35),
+    new THREE.MeshBasicMaterial({ map: neonTex, transparent: true }));
+  neon.position.set(0, 2.32, -12.95); scene.add(neon);
+  const orange = new THREE.PointLight(0xff7a00, 1.5, 17); orange.position.set(0, 2.2, -11.6); scene.add(orange);
+  const orangeFill = new THREE.PointLight(0xff8a20, 0.35, 10); orangeFill.position.set(0, 1.4, -6); scene.add(orangeFill);
 
-  if (!visible.length) {
-    storeHtml = `<p class="empty-note" style="text-align:center;padding-top:40px">Sorry, we don't have that one in. Try another word at the counter.</p>`;
-  }
+  // warm base ambience
+  scene.add(new THREE.AmbientLight(0x8a6a4a, 0.34));
 
-  nav.innerHTML = navHtml;
-  store.innerHTML = storeHtml;
+  // counter by the entrance
+  box(2.4, 1.0, 0.9, 0x22150c, 4.6, 0.5, 2.4); addCollider(3.3, 5.9, 1.85, 2.95);
+  const lamp = new THREE.PointLight(0xffc27a, 0.5, 4); lamp.position.set(4.6, 1.5, 2.4); scene.add(lamp);
+  const note = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.19),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(noteCanvas('PLEASE REWIND!')) }));
+  note.position.set(4.6, 1.05, 1.94); note.rotation.y = Math.PI; scene.add(note);
 }
 
-/* ── Pulled-out case ── */
+const CASE_W = 0.135, CASE_H = 0.19;
+function buildCases() {
+  const visible = movies.filter(m => m.hidden !== 'true');
+  const bySection = {};
+  SECTIONS.forEach(s => bySection[s.id] = []);
+  visible.forEach(m => bySection[sectionFor(m).id].push(m));
+  SECTIONS.forEach(s => bySection[s.id].sort((a,b) => a.title.localeCompare(b.title)));
+
+  const { placements, signs, overflow } = assignSlots(bySection);
+  if (overflow) console.warn('shelf capacity exceeded; some films not placed');
+
+  // instanced case bodies: one draw call for every case back
+  const bodyGeo = new THREE.BoxGeometry(CASE_W + 0.006, CASE_H + 0.008, 0.028);
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0x141218 });
+  const bodies = new THREE.InstancedMesh(bodyGeo, bodyMat, placements.length);
+  const dummy = new THREE.Object3D();
+
+  const planeGeo = new THREE.PlaneGeometry(CASE_W, CASE_H);
+  placements.forEach((p, idx) => {
+    const nx = Math.sin(p.rotY), nz = Math.cos(p.rotY); // face normal
+    dummy.position.set(p.x, p.y + CASE_H/2, p.z);
+    dummy.rotation.set(0, p.rotY, 0);
+    dummy.updateMatrix();
+    bodies.setMatrixAt(idx, dummy.matrix);
+
+    const mat = new THREE.MeshLambertMaterial({ color: p.sec.tint });
+    const plane = new THREE.Mesh(planeGeo, mat);
+    plane.position.set(p.x + nx*0.017, p.y + CASE_H/2, p.z + nz*0.017);
+    plane.rotation.y = p.rotY;
+    plane.userData.m = p.m;
+    scene.add(plane);
+    posterMeshes.push(plane);
+    if (p.m.poster_url) {
+      texState.set(p.m.uid, { mesh: plane, url: p.m.poster_url.replace('/w300','/w185'), tex: null, loading: false });
+    }
+  });
+  scene.add(bodies);
+
+  // section signs above the first case of each section
+  for (const s of signs) {
+    const nx = Math.sin(s.rotY), nz = Math.cos(s.rotY);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.38),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(signCanvas(s.label)), transparent: false }));
+    sign.position.set(s.x + nx*0.06, 2.62, s.z + nz*0.06);
+    sign.rotation.y = s.rotY;
+    scene.add(sign);
+  }
+
+  // tonight's picks gondola in the center aisle
+  const picks = seededPicks(visible.filter(m => m.watched !== 'true' && m.poster_url), 5);
+  if (picks.length) {
+    box(1.15, 0.95, 0.8, 0x22150c, 0, 0.475, -4); addCollider(-0.75, 0.75, -4.55, -3.45);
+    const noteMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.2),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(noteCanvas("TONIGHT'S PICKS")) }));
+    noteMesh.position.set(0, 1.32, -3.58); scene.add(noteMesh);
+    picks.forEach((m, k) => {
+      const mat = new THREE.MeshLambertMaterial({ color: 0x2a2a36 });
+      const plane = new THREE.Mesh(planeGeo, mat);
+      plane.position.set(-0.42 + k*0.21, 1.06, -3.585);
+      plane.userData.m = m;
+      scene.add(plane);
+      posterMeshes.push(plane);
+      texState.set('pick-' + m.uid, { mesh: plane, url: m.poster_url.replace('/w300','/w185'), tex: null, loading: false });
+    });
+  }
+}
+
+/* ── proximity texture streaming ── */
+const texLoader = new THREE.TextureLoader();
+texLoader.setCrossOrigin('anonymous');
+const TEX_BUDGET = 240, LOAD_NEAR = 9, CONCURRENT = 6;
+let inflight = 0;
+function streamTextures() {
+  const cx = camera.position.x, cz = camera.position.z;
+  const entries = [...texState.values()];
+  for (const e of entries) {
+    const dx = e.mesh.position.x - cx, dz = e.mesh.position.z - cz;
+    e.d2 = dx*dx + dz*dz;
+  }
+  entries.sort((a,b) => a.d2 - b.d2);
+  let loaded = entries.filter(e => e.tex).length;
+  for (const e of entries) {
+    if (inflight >= CONCURRENT) break;
+    if (e.tex || e.loading) continue;
+    if (e.d2 > LOAD_NEAR*LOAD_NEAR) break;
+    if (loaded >= TEX_BUDGET) break;
+    e.loading = true; inflight++;
+    texLoader.load(e.url, tex => {
+      inflight--; e.loading = false; e.tex = tex;
+      e.mesh.material.map = tex;
+      e.mesh.material.color.set(0xffffff);
+      e.mesh.material.needsUpdate = true;
+    }, undefined, () => { inflight--; e.loading = false; e.failed = true; e.tex = false; });
+    loaded++;
+  }
+  // evict farthest when over budget
+  const withTex = entries.filter(e => e.tex && e.tex !== false);
+  if (withTex.length > TEX_BUDGET) {
+    withTex.sort((a,b) => b.d2 - a.d2);
+    for (let i = 0; i < withTex.length - TEX_BUDGET; i++) {
+      const e = withTex[i];
+      e.mesh.material.map = null;
+      e.mesh.material.color.set(0x2a2a36);
+      e.mesh.material.needsUpdate = true;
+      e.tex.dispose(); e.tex = null;
+    }
+  }
+}
+
+/* ── movement + look ── */
+function setupControls(canvas) {
+  canvas.addEventListener('click', () => {
+    if (document.getElementById('pull-overlay').classList.contains('open')) return;
+    if (!locked) { canvas.requestPointerLock?.(); return; }
+    // locked click: pull the case under the crosshair
+    if (hovered) openCase(hovered.userData.m);
+  });
+  document.addEventListener('pointerlockchange', () => {
+    locked = document.pointerLockElement === canvas;
+    document.getElementById('crosshair').style.display = locked ? 'block' : 'none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!locked) return;
+    yaw   -= e.movementX * 0.0022;
+    pitch -= e.movementY * 0.0022;
+    pitch = Math.max(-1.3, Math.min(1.3, pitch));
+  });
+  document.addEventListener('keydown', e => { keys[e.code] = true; });
+  document.addEventListener('keyup',   e => { keys[e.code] = false; });
+
+  // touch: drag to look, hold buttons to move
+  let lastTouch = null;
+  canvas.addEventListener('touchstart', e => { lastTouch = e.touches[0]; }, { passive: true });
+  canvas.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    if (lastTouch) {
+      yaw   -= (t.clientX - lastTouch.clientX) * 0.004;
+      pitch -= (t.clientY - lastTouch.clientY) * 0.004;
+      pitch = Math.max(-1.3, Math.min(1.3, pitch));
+    }
+    lastTouch = t;
+  }, { passive: true });
+  canvas.addEventListener('touchend', () => { lastTouch = null; }, { passive: true });
+  const bind = (id, v) => {
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', e => { e.preventDefault(); touchFwd = v; }, { passive: false });
+    el.addEventListener('touchend',   e => { e.preventDefault(); touchFwd = 0; }, { passive: false });
+  };
+  bind('t-fwd', 1); bind('t-back', -1);
+  if ('ontouchstart' in window) {
+    document.getElementById('touch').style.display = 'flex';
+    document.getElementById('hint').textContent = 'Drag to look · hold ▲ to walk · tap a cover to pull it';
+    // tap-to-open on touch: tap = raycast at tap point
+    canvas.addEventListener('touchend', e => {
+      if (e.changedTouches.length !== 1) return;
+      const t = e.changedTouches[0];
+      const hit = raycastAt((t.clientX / innerWidth) * 2 - 1, -(t.clientY / innerHeight) * 2 + 1);
+      if (hit) openCase(hit.userData.m);
+    }, { passive: true });
+  }
+}
+function movePlayer(dt) {
+  const speed = 2.8;
+  let fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + touchFwd;
+  let strafe = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+  if (!fwd && !strafe) return;
+  const len = Math.hypot(fwd, strafe) || 1;
+  fwd /= len; strafe /= len;
+  const sin = Math.sin(yaw), cos = Math.cos(yaw);
+  const dx = (-sin * fwd + cos * strafe) * speed * dt;
+  const dz = (-cos * fwd - sin * strafe) * speed * dt;
+  const r = 0.32;
+  const blocked = (x, z) => {
+    if (x < -6.5 + r && x > -7) {} // walls handled by clamp below
+    for (const c of colliders) {
+      if (x > c.minX - r && x < c.maxX + r && z > c.minZ - r && z < c.maxZ + r) return true;
+    }
+    return false;
+  };
+  let nx = camera.position.x + dx;
+  if (nx < -6.6 + r) nx = -6.6 + r; if (nx > 6.6 - r) nx = 6.6 - r;
+  if (!blocked(nx, camera.position.z)) camera.position.x = nx;
+  let nz = camera.position.z + dz;
+  if (nz < -12.5 + r) nz = -12.5 + r; if (nz > 3.6 - r) nz = 3.6 - r;
+  if (!blocked(camera.position.x, nz)) camera.position.z = nz;
+}
+
+/* ── hover + open ── */
+const raycaster = new THREE.Raycaster();
+raycaster.far = 4.5;
+let hovered = null;
+function raycastAt(ndcX, ndcY) {
+  raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera);
+  const hits = raycaster.intersectObjects(posterMeshes, false);
+  return hits.length ? hits[0].object : null;
+}
+function updateHover() {
+  hovered = locked ? raycastAt(0, 0) : null;
+  const el = document.getElementById('hover');
+  if (hovered) {
+    const m = hovered.userData.m;
+    el.innerHTML = `${escHtml(m.title)} <span class="dim">(${escHtml(m.year)}) · ${escHtml(m.format)}${m.watched === 'true' ? '' : ' · NOT SEEN'}</span>`;
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+/* ── the flip-case overlay (same as 2D store) ── */
 const overlay = document.getElementById('pull-overlay');
 const inner = document.getElementById('pull-inner');
-
 async function fetchOverview(m) {
   if (overviewCache.has(m.uid)) return overviewCache.get(m.uid);
   if (!/^tt\d{7,8}$/.test(m.imdb_id) || m.imdb_id === 'tt0000000') return '';
@@ -583,18 +589,15 @@ async function fetchOverview(m) {
     return ov;
   } catch(e) { return ''; }
 }
-
-async function pullCase(uid) {
-  const m = movies.find(x => x.uid === uid);
+async function openCase(m) {
   if (!m) return;
+  document.exitPointerLock?.();
   const front = document.getElementById('pull-front');
   const back = document.getElementById('pull-back');
   inner.classList.remove('flipped');
-
   front.innerHTML = m.poster_url
     ? `<img src="${escHtml(m.poster_url.replace('/w300','/w500'))}" alt="${escHtml(m.title)}">`
     : `<div class="no-art">${escHtml(m.title)}</div>`;
-
   const watched = m.watched === 'true';
   const actors = (m.actors || '').split('|').filter(a => a && a !== '-').join(', ');
   back.innerHTML = `
@@ -606,41 +609,69 @@ async function pullCase(uid) {
     ${actors ? `<div class="meta-line"><b>Starring:</b> ${escHtml(actors)}</div>` : ''}
     <div class="meta-line"><b>${escHtml(m.year)}</b> · ${escHtml(m.format)}${m.runtime && m.runtime !== '0' ? ` · ${escHtml(m.runtime)} min` : ''}${m.box_set ? ` · From the box set: ${escHtml(m.box_set)}` : ''}</div>
     <div class="barcode"></div>`;
-
   overlay.classList.add('open');
-
   const ov = await fetchOverview(m);
   const syn = document.getElementById('pull-synopsis');
   if (syn) syn.textContent = ov || 'The back-cover text has gone missing. Ask at the counter.';
 }
-
-document.getElementById('store').addEventListener('click', e => {
-  const btn = e.target.closest('.case');
-  if (btn) pullCase(btn.dataset.uid);
-});
-inner.addEventListener('click', e => {
-  if (e.target.id === 'pull-close') return;
-  inner.classList.toggle('flipped');
-});
+inner.addEventListener('click', e => { if (e.target.id !== 'pull-close') inner.classList.toggle('flipped'); });
 document.getElementById('pull-close').addEventListener('click', () => overlay.classList.remove('open'));
 overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('open'); });
 
-let searchTimer;
-document.getElementById('q').addEventListener('input', e => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => render(e.target.value), 150);
-});
+/* ── boot ── */
+async function init() {
+  const canvas = document.getElementById('c');
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  } catch(e) {
+    return fail('Your browser could not start WebGL, so the 3D store cannot open.');
+  }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
 
-(async function init() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.05, 60);
+  camera.position.set(0, 1.62, 3.2);
+
   try {
     const res = await fetch(CSV_URL + '?t=' + Date.now());
     movies = parseCSV(await res.text());
-    render('');
   } catch(e) {
-    document.getElementById('store').innerHTML = '<p class="empty-note" style="text-align:center;padding-top:40px">The shop could not open. Try reloading the page.</p>';
+    return fail('The shop could not open: the film database did not load. Check your connection and reload.');
   }
-})();
+
+  buildRoom();
+  buildCases();
+  setupControls(canvas);
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  document.getElementById('loading').style.display = 'none';
+
+  let last = performance.now(), frame = 0, lastStream = 0;
+  function loop(now) {
+    const dt = Math.min((now - last) / 1000, 0.05); last = now;
+    movePlayer(dt);
+    camera.rotation.set(0, 0, 0);
+    camera.rotateY(yaw);
+    camera.rotateX(pitch);
+    if (frame % 2 === 0) updateHover();
+    if (now - lastStream > 450) { streamTextures(); lastStream = now; }
+    renderer.render(scene, camera);
+    frame++;
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+init();
 </script>
 </body>
 </html>
